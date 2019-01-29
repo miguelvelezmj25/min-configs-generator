@@ -19,14 +19,14 @@ import scala.collection.JavaConverters;
 
 public class MinConfigs {
 
-  private static final FeatureExprParser PARSER =
-      new FeatureExprParserJava(FeatureExprFactory.sat());
-  //      new FeatureExprParserJava(FeatureExprFactory.bdd());
+  private static final FeatureExprParser PARSER = new FeatureExprParserJava(FeatureExprFactory.sat());
+//  private static final FeatureExprParser PARSER = new FeatureExprParserJava(FeatureExprFactory.bdd());
   private static final FeatureModel FM = SATFeatureModel.empty();
   //  private static final FeatureModel FM = BDDFeatureModel.empty();
 
   static {
-    //    FeatureExprFactory.setDefault(FeatureExprFactory.bdd());
+        FeatureExprFactory.setDefault(FeatureExprFactory.sat());
+//        FeatureExprFactory.setDefault(FeatureExprFactory.bdd());
   }
 
   // TODO rename
