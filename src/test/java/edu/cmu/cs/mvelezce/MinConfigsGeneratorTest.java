@@ -139,4 +139,31 @@ public class MinConfigsGeneratorTest {
 
     Assert.assertEquals(3, configs.size());
   }
+
+  @Test
+  public void getConfigs5() {
+    Set<String> options = new HashSet<>();
+    options.add("A");
+    options.add("B");
+    options.add("C");
+
+    List<String> constraints = new ArrayList<>();
+    constraints.add("A");
+    constraints.add("!A");
+
+    constraints.add("B");
+    constraints.add("!B");
+
+    // TODO how to encode "A v B"?
+    constraints.add("!(A || B)");
+    constraints.add("A && !B");
+    constraints.add("!A && !B");
+    constraints.add("!A && B");
+    constraints.add("!A && !B");
+
+    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
+    System.out.println(configs);
+
+    Assert.assertEquals(3, configs.size());
+  }
 }
