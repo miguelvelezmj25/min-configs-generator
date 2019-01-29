@@ -1,13 +1,12 @@
 package edu.cmu.cs.mvelezce;
 
-import de.fosd.typechef.featureexpr.FeatureExprFactory;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.junit.Test;
 
-public class MinConfigsTest {
+public class MinConfigsGeneratorTest {
 
   @Test
   public void entry() {
@@ -44,7 +43,7 @@ public class MinConfigsTest {
     //    taintConstraints.add("!(A | B)");
 
 
-    MinConfigs.entry(options, constraints);
+    MinConfigsGenerator.entry(options, constraints);
   }
 
   @Test
@@ -62,7 +61,7 @@ public class MinConfigsTest {
     constraints.add("(!A && !B)");
     constraints.add("(!A && B) || (A && !B) || (A && B)");
 
-    Set<Set<String>> configs = MinConfigs.entry(options, constraints);
+    Set<Set<String>> configs = MinConfigsGenerator.entry(options, constraints);
     System.out.println(configs);
   }
 
@@ -77,7 +76,7 @@ public class MinConfigsTest {
     constraints.add("A");
     constraints.add("A && B");
 
-    Set<Set<String>> configs = MinConfigs.entry(options, constraints);
+    Set<Set<String>> configs = MinConfigsGenerator.entry(options, constraints);
     System.out.println(configs);
   }
 
@@ -104,7 +103,7 @@ public class MinConfigsTest {
     constraints.add("(!A && B) || (A && !B)");
     constraints.add("(A && B)");
 
-    Set<Set<String>> configs = MinConfigs.entry(options, constraints);
+    Set<Set<String>> configs = MinConfigsGenerator.entry(options, constraints);
     System.out.println(configs);
   }
 }
