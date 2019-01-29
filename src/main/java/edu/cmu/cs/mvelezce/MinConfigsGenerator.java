@@ -17,9 +17,7 @@ import scala.Option;
 import scala.Tuple2;
 import scala.collection.JavaConverters;
 
-/**
- * Reimplementation and repurposing of https://github.com/ckaestne/OptimalCoverage.
- */
+/** Reimplementation and repurposing of https://github.com/ckaestne/OptimalCoverage. */
 public class MinConfigsGenerator {
 
   private static final FeatureExprParser PARSER =
@@ -34,8 +32,14 @@ public class MinConfigsGenerator {
     //        FeatureExprFactory.setDefault(FeatureExprFactory.bdd());
   }
 
-  // TODO rename
-  public static Set<Set<String>> entry(Set<String> options, List<String> constraints) {
+  /**
+   * Generate the minimum number of configurations to satisfy a set of constraints
+   *
+   * @param options the options of the program.
+   * @param constraints the partial configurations.
+   * @return
+   */
+  public static Set<Set<String>> getConfigs(Set<String> options, List<String> constraints) {
     // TODO remove redundancies
     // TODO remove implications
 
@@ -46,7 +50,6 @@ public class MinConfigsGenerator {
         getColoring(constraints, mutuallyExclusiveFeatureExprs);
 
     Set<String> colors = getColors(coloring);
-
     Set<Set<SingleFeatureExpr>> groupingByColors = groupColoringByColors(coloring, colors);
     Set<Set<Integer>> constraintIndexesByColors = getConstraintIndexesByColors(groupingByColors);
     Set<Set<FeatureExpr>> featureExprsByColor =
@@ -222,23 +225,24 @@ public class MinConfigsGenerator {
     return interestingFeatures;
   }
 
-  // TODO names
   private static FeatureExpr getMutuallyExclusiveConstraints(
-      Set<Pair<Integer, Integer>> mex, int colors) {
+      Set<Pair<Integer, Integer>> mutuallyExclusiveFeatureExprs, int colors) {
     FeatureExpr mutuallyExclusiveConstraints = FeatureExprFactory.True();
 
     for (int color = 0; color <= colors; color++) {
-      FeatureExpr something = FeatureExprFactory.True();
+      FeatureExpr mutuallyExclusiveConstraint = FeatureExprFactory.True();
 
-      for (Pair<Integer, Integer> m : mex) {
-        FeatureExpr coloredVertex1 = PARSER.parse(createVertex(m.getLeft(), color));
-        FeatureExpr coloredVertex2 = PARSER.parse(createVertex(m.getRight(), color));
+      for (Pair<Integer, Integer> mutuallyExclusiveExprs : mutuallyExclusiveFeatureExprs) {
+        FeatureExpr coloredVertex1 =
+            PARSER.parse(createVertex(mutuallyExclusiveExprs.getLeft(), color));
+        FeatureExpr coloredVertex2 =
+            PARSER.parse(createVertex(mutuallyExclusiveExprs.getRight(), color));
 
-        FeatureExpr con = coloredVertex1.and(coloredVertex2).not();
-        something = something.and(con);
+        FeatureExpr mutuallyExclusiveFeatureExpr = coloredVertex1.and(coloredVertex2).not();
+        mutuallyExclusiveConstraint = mutuallyExclusiveConstraint.and(mutuallyExclusiveFeatureExpr);
       }
 
-      mutuallyExclusiveConstraints = mutuallyExclusiveConstraints.and(something);
+      mutuallyExclusiveConstraints = mutuallyExclusiveConstraints.and(mutuallyExclusiveConstraint);
     }
 
     return mutuallyExclusiveConstraints;

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.junit.Assert;
 import org.junit.Test;
 
 public class MinConfigsGeneratorTest {
@@ -43,11 +44,11 @@ public class MinConfigsGeneratorTest {
     //    taintConstraints.add("!(A | B)");
 
 
-    MinConfigsGenerator.entry(options, constraints);
+    MinConfigsGenerator.getConfigs(options, constraints);
   }
 
   @Test
-  public void constraints1() {
+  public void getConfigs1() {
     Set<String> options = new HashSet<>();
     options.add("A");
     options.add("B");
@@ -61,12 +62,14 @@ public class MinConfigsGeneratorTest {
     constraints.add("(!A && !B)");
     constraints.add("(!A && B) || (A && !B) || (A && B)");
 
-    Set<Set<String>> configs = MinConfigsGenerator.entry(options, constraints);
+    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
     System.out.println(configs);
+
+    Assert.assertEquals(2, configs.size());
   }
 
   @Test
-  public void constraints2() {
+  public void getConfigs2() {
     Set<String> options = new HashSet<>();
     options.add("A");
     options.add("B");
@@ -76,12 +79,14 @@ public class MinConfigsGeneratorTest {
     constraints.add("A");
     constraints.add("A && B");
 
-    Set<Set<String>> configs = MinConfigsGenerator.entry(options, constraints);
+    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
     System.out.println(configs);
+
+    Assert.assertEquals(1, configs.size());
   }
 
   @Test
-  public void constraints3() {
+  public void getConfigs3() {
     Set<String> options = new HashSet<>();
     options.add("A");
     options.add("B");
@@ -103,7 +108,35 @@ public class MinConfigsGeneratorTest {
     constraints.add("(!A && B) || (A && !B)");
     constraints.add("(A && B)");
 
-    Set<Set<String>> configs = MinConfigsGenerator.entry(options, constraints);
+    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
     System.out.println(configs);
+
+    Assert.assertEquals(3, configs.size());
+  }
+
+  @Test
+  public void getConfigs4() {
+    Set<String> options = new HashSet<>();
+    options.add("A");
+    options.add("B");
+    options.add("C");
+
+    List<String> constraints = new ArrayList<>();
+    constraints.add("A");
+    constraints.add("!A");
+
+    constraints.add("B");
+    constraints.add("!B");
+
+    constraints.add("B");
+    constraints.add("!B");
+
+    constraints.add("A && C");
+    constraints.add("A && !C");
+
+    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
+    System.out.println(configs);
+
+    Assert.assertEquals(3, configs.size());
   }
 }
