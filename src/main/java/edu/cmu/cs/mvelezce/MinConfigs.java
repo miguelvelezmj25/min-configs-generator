@@ -4,15 +4,14 @@ import de.fosd.typechef.featureexpr.FeatureExpr;
 import de.fosd.typechef.featureexpr.FeatureExprFactory;
 import de.fosd.typechef.featureexpr.FeatureExprParser;
 import de.fosd.typechef.featureexpr.FeatureExprParserJava;
+import de.fosd.typechef.featureexpr.FeatureModel;
 import de.fosd.typechef.featureexpr.SingleFeatureExpr;
+import de.fosd.typechef.featureexpr.sat.SATFeatureModel;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import org.apache.commons.lang3.tuple.Pair;
 import scala.Option;
 import scala.Tuple2;
@@ -22,28 +21,143 @@ public class MinConfigs {
 
   private static final FeatureExprParser PARSER =
       new FeatureExprParserJava(FeatureExprFactory.sat());
+  //      new FeatureExprParserJava(FeatureExprFactory.bdd());
+  private static final FeatureModel FM = SATFeatureModel.empty();
+  //  private static final FeatureModel FM = BDDFeatureModel.empty();
 
-  public static void main(String[] args) {
-    List<String> taintConstraints = new ArrayList<>();
-    taintConstraints.add("A");
-    taintConstraints.add("!A");
-    taintConstraints.add("A & C");
-    taintConstraints.add("A & !C");
-    taintConstraints.add("B");
-    taintConstraints.add("!B");
+  static {
+    //    FeatureExprFactory.setDefault(FeatureExprFactory.bdd());
+  }
 
+  // TODO rename
+  public static Set<Set<String>> entry(Set<String> options, List<String> constraints) {
     // TODO remove redundancies
+    // TODO remove implications
 
-    List<FeatureExpr> featureExprs = parseFeatureExprs(taintConstraints);
+    List<FeatureExpr> featureExprs = parseFeatureExprs(constraints);
     Set<Pair<Integer, Integer>> mutuallyExclusiveFeatureExprs =
         calculateMutualExclusions(featureExprs);
     Collection<SingleFeatureExpr> coloring =
-        getColoring(taintConstraints, mutuallyExclusiveFeatureExprs);
+        getColoring(constraints, mutuallyExclusiveFeatureExprs);
 
-    System.out.println(coloring);
+    Set<String> colors = getColors(coloring);
 
-    // TODO add in other methods
+    Set<Set<SingleFeatureExpr>> groupingByColors = groupColoringByColors(coloring, colors);
+    Set<Set<Integer>> constraintIndexesByColors = getConstraintIndexesByColors(groupingByColors);
+    Set<Set<FeatureExpr>> featureExprsByColor =
+        getFeatureExprsByColor(featureExprs, constraintIndexesByColors);
 
+    Set<SingleFeatureExpr> singleFeatureExprs = parseSingleFeatureExprs(options);
+    scala.collection.immutable.Set<SingleFeatureExpr> singleFeatureExprScalaSet =
+        JavaConverters.asScalaSet(singleFeatureExprs).toSet();
+
+    return getConfigs(featureExprsByColor, singleFeatureExprScalaSet);
+  }
+
+  private static Set<Set<String>> getConfigs(
+      Set<Set<FeatureExpr>> featureExprsByColor,
+      scala.collection.immutable.Set<SingleFeatureExpr> singleFeatureExprScalaSet) {
+    Set<Set<String>> configs = new HashSet<>();
+
+    for (Set<FeatureExpr> featureExprs : featureExprsByColor) {
+      FeatureExpr formula = FeatureExprFactory.True();
+
+      for (FeatureExpr featureExpr : featureExprs) {
+        formula = formula.and(featureExpr);
+      }
+
+      if (!formula.isSatisfiable()) {
+        throw new RuntimeException("The following formula is not satisfiable\n" + formula);
+      }
+
+      Option<
+              Tuple2<
+                  scala.collection.immutable.List<SingleFeatureExpr>,
+                  scala.collection.immutable.List<SingleFeatureExpr>>>
+          assign = formula.getSatisfiableAssignment(FM, singleFeatureExprScalaSet, true);
+
+      Set<SingleFeatureExpr> singleFeatureExprConfig =
+          new HashSet<>(JavaConverters.asJavaCollection(assign.get()._1));
+
+      Set<String> config = new HashSet<>();
+
+      for (SingleFeatureExpr singleFeatureExpr : singleFeatureExprConfig) {
+        config.add(singleFeatureExpr.feature());
+      }
+
+      configs.add(config);
+    }
+
+    return configs;
+  }
+
+  private static Set<Set<FeatureExpr>> getFeatureExprsByColor(
+      List<FeatureExpr> featureExprs, Set<Set<Integer>> constraintIndexesByColors) {
+    Set<Set<FeatureExpr>> featureExprsByColor = new HashSet<>();
+
+    for (Set<Integer> constraintIndexes : constraintIndexesByColors) {
+      Set<FeatureExpr> featureExprsGroupedByColor = new HashSet<>();
+
+      for (Integer i : constraintIndexes) {
+        FeatureExpr featureExpr = featureExprs.get(i);
+        featureExprsGroupedByColor.add(featureExpr);
+      }
+
+      featureExprsByColor.add(featureExprsGroupedByColor);
+    }
+
+    return featureExprsByColor;
+  }
+
+  private static Set<Set<Integer>> getConstraintIndexesByColors(
+      Set<Set<SingleFeatureExpr>> groupingByColors) {
+    Set<Set<Integer>> constraintIndexesByColors = new HashSet<>();
+
+    for (Set<SingleFeatureExpr> colorGrouping : groupingByColors) {
+      Set<Integer> constraintIndexes = getConstraintIndexes(colorGrouping);
+      constraintIndexesByColors.add(constraintIndexes);
+    }
+
+    return constraintIndexesByColors;
+  }
+
+  private static Set<Integer> getConstraintIndexes(Set<SingleFeatureExpr> colorGrouping) {
+    Set<Integer> constraintIndexes = new HashSet<>();
+
+    for (SingleFeatureExpr singleFeatureExpr : colorGrouping) {
+      String feature = singleFeatureExpr.feature();
+      int vIndex = feature.indexOf("v");
+      int colorIndex = feature.lastIndexOf("_");
+      String constraintIndex = feature.substring(vIndex + 1, colorIndex);
+
+      constraintIndexes.add(Integer.valueOf(constraintIndex));
+    }
+
+    return constraintIndexes;
+  }
+
+  private static Set<Set<SingleFeatureExpr>> groupColoringByColors(
+      Collection<SingleFeatureExpr> coloring, Set<String> colors) {
+    Set<Set<SingleFeatureExpr>> groupedColoring = new HashSet<>();
+
+    for (String color : colors) {
+      Set<SingleFeatureExpr> colorGroup = new HashSet<>();
+
+      for (SingleFeatureExpr singleFeatureExpr : coloring) {
+        if (singleFeatureExpr.feature().endsWith("_" + color)) {
+          colorGroup.add(singleFeatureExpr);
+        }
+      }
+
+      // TODO remove all the feature expressions that we have identified the color from the coloring
+
+      groupedColoring.add(colorGroup);
+    }
+
+    return groupedColoring;
+  }
+
+  private static Set<String> getColors(Collection<SingleFeatureExpr> coloring) {
     Set<String> colors = new HashSet<>();
 
     for (SingleFeatureExpr featureExpr : coloring) {
@@ -53,42 +167,7 @@ public class MinConfigs {
       colors.add(color);
     }
 
-    Set<Set<Integer>> constraints = new HashSet<>();
-
-    for (String color : colors) {
-      Set<Integer> constraintIndexes = new HashSet<>();
-
-      for (SingleFeatureExpr featureExpr : coloring) {
-        String feature = featureExpr.feature();
-
-        if (!feature.endsWith("_" + color)) {
-          continue;
-        }
-
-        int colorIndex = feature.lastIndexOf("_");
-        int constraintIndex = Integer.valueOf(feature.substring(1, colorIndex));
-
-        constraintIndexes.add(constraintIndex);
-      }
-
-      constraints.add(constraintIndexes);
-    }
-
-    Set<Set<String>> configs = new HashSet<>();
-
-    for (Set<Integer> x : constraints) {
-      Set<String> config = new HashSet<>();
-
-      for (Integer i : x) {
-        config.add(taintConstraints.get(i));
-      }
-
-      configs.add(config);
-    }
-
-    for (Set<String> config : configs) {
-      System.out.println(config);
-    }
+    return colors;
   }
 
   private static Collection<SingleFeatureExpr> getColoring(
@@ -105,6 +184,12 @@ public class MinConfigs {
           getMutuallyExclusiveConstraints(mutuallyExclusiveFeatureExprs, colors);
       FeatureExpr formula = assignedColors.and(mutuallyExclusiveConstraints);
 
+      if (!formula.isSatisfiable()) {
+        colors++;
+
+        continue;
+      }
+
       scala.collection.immutable.Set<SingleFeatureExpr> scalaInterestingFeatures =
           JavaConverters.asScalaSet(interestingFeatures).toSet();
 
@@ -112,13 +197,7 @@ public class MinConfigs {
               Tuple2<
                   scala.collection.immutable.List<SingleFeatureExpr>,
                   scala.collection.immutable.List<SingleFeatureExpr>>>
-          assign = formula.getSatisfiableAssignment(null, scalaInterestingFeatures, true);
-
-      if (assign.isEmpty()) {
-        colors++;
-
-        continue;
-      }
+          assign = formula.getSatisfiableAssignment(FM, scalaInterestingFeatures, true);
 
       return JavaConverters.asJavaCollection(assign.get()._1);
     }
@@ -138,6 +217,7 @@ public class MinConfigs {
     return interestingFeatures;
   }
 
+  // TODO names
   private static FeatureExpr getMutuallyExclusiveConstraints(
       Set<Pair<Integer, Integer>> mex, int colors) {
     FeatureExpr mutuallyExclusiveConstraints = FeatureExprFactory.True();
@@ -180,32 +260,6 @@ public class MinConfigs {
     return assignedColors;
   }
 
-  private static Map<FeatureExpr, FeatureExpr> encodeUUIDs(Map<FeatureExpr, FeatureExpr> map1) {
-    Map<FeatureExpr, FeatureExpr> map = new HashMap<>();
-
-    for (Map.Entry<FeatureExpr, FeatureExpr> entry : map1.entrySet()) {
-      map.put(entry.getValue(), entry.getKey());
-    }
-
-    return map;
-  }
-
-  private static Map<FeatureExpr, FeatureExpr> encodeFeatureExpr(Set<FeatureExpr> featureExprs) {
-    FeatureExprParser parser = new FeatureExprParserJava(FeatureExprFactory.sat());
-    Map<FeatureExpr, FeatureExpr> map = new HashMap<>();
-
-    for (FeatureExpr featureExpr : featureExprs) {
-      UUID uuid = UUID.randomUUID();
-      String s = uuid.toString();
-      int dashIndex = s.indexOf("-");
-      s = s.substring(0, dashIndex);
-
-      map.put(featureExpr, parser.parse(s));
-    }
-
-    return map;
-  }
-
   private static Set<Pair<Integer, Integer>> calculateMutualExclusions(
       List<FeatureExpr> featureExprs) {
     Set<Pair<Integer, Integer>> mutuallyExclusiveFeatureExprs = new HashSet<>();
@@ -231,9 +285,26 @@ public class MinConfigs {
 
     for (String constraint : taintConstraints) {
       FeatureExpr featureExpr = PARSER.parse(constraint);
-      featureExprs.add(featureExpr);
+
+      if (featureExpr.isTautology()) {
+        featureExprs.add(FeatureExprFactory.True());
+      } else {
+
+        featureExprs.add(featureExpr);
+      }
     }
 
     return featureExprs;
+  }
+
+  private static Set<SingleFeatureExpr> parseSingleFeatureExprs(Set<String> options) {
+    Set<SingleFeatureExpr> singleFeatureExprs = new HashSet<>();
+
+    for (String option : options) {
+      SingleFeatureExpr featureExpr = (SingleFeatureExpr) PARSER.parse(option);
+      singleFeatureExprs.add(featureExpr);
+    }
+
+    return singleFeatureExprs;
   }
 }

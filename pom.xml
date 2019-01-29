@@ -60,6 +60,16 @@
       </systemPath>
     </dependency>
 
+    <dependency>
+      <groupId>de.fosd.typechef</groupId>
+      <artifactId>bdd</artifactId>
+      <version>1.0.1</version>
+      <scope>system</scope>
+      <systemPath>
+        ${project.basedir}/lib/jbddi-core-1.0.1.jar
+      </systemPath>
+    </dependency>
+
   </dependencies>
 
   <build>
