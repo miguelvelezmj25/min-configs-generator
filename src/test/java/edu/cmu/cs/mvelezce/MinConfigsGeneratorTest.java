@@ -166,4 +166,80 @@ public class MinConfigsGeneratorTest {
 
     Assert.assertEquals(3, configs.size());
   }
+
+  @Test
+  public void getConfigs6() {
+    Set<String> options = new HashSet<>();
+    options.add("A");
+    options.add("B");
+    options.add("C");
+
+    List<String> constraints = new ArrayList<>();
+    constraints.add("A");
+    constraints.add("!A");
+
+    constraints.add("A && B");
+    constraints.add("A && !B");
+
+    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
+    System.out.println(configs);
+
+    Assert.assertEquals(3, configs.size());
+  }
+
+  @Test
+  public void getConfigs7() {
+    Set<String> options = new HashSet<>();
+    options.add("A");
+    options.add("B");
+    options.add("C");
+
+    List<String> constraints = new ArrayList<>();
+    constraints.add("A");
+    constraints.add("!A");
+
+    constraints.add("!A");
+    constraints.add("(A && !B && !C) || (A && !B && C)");
+    constraints.add("(A && B && !C) || (A && B && C)");
+
+    constraints.add("A");
+    constraints.add("!A");
+
+    constraints.add("!A");
+    constraints.add("(A && !B && !C) || (A && B && !C)");
+    constraints.add("(A && !B && C) || (A && B && C)");
+
+    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
+    System.out.println(configs);
+
+    Assert.assertEquals(3, configs.size());
+  }
+
+  @Test
+  public void getConfigs8() {
+    Set<String> options = new HashSet<>();
+    options.add("A");
+    options.add("B");
+    options.add("C");
+
+    List<String> constraints = new ArrayList<>();
+    constraints.add("A");
+    constraints.add("!A");
+
+    constraints.add("!A");
+    constraints.add("(A && !B && !C) || (A && B && !C)");
+    constraints.add("(A && !B && C) || (A && B && C)");
+
+    constraints.add("B");
+    constraints.add("!B");
+
+    constraints.add("!B");
+    constraints.add("(!A && B && !C) || (A && B && !C)");
+    constraints.add("(!A && B && C) || (A && B && C)");
+
+    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
+    System.out.println(configs);
+
+    Assert.assertEquals(3, configs.size());
+  }
 }
