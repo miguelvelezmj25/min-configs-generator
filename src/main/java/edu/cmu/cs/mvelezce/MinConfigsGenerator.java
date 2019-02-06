@@ -13,7 +13,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.math3.util.Combinations;
 import scala.Option;
 import scala.Tuple2;
@@ -41,17 +40,11 @@ public class MinConfigsGenerator {
     featureExprs = removeRedundant(featureExprs);
     featureExprs = toSatFeatureExprs(featureExprs);
 
-    Set<Pair<Integer, Integer>> mutuallyExclusiveVertices =
-        calculateVertexMutualExclusions(featureExprs);
-
-    Set<Set<FeatureExpr>> featureExprsCombos = getFeatureExprsCombos(featureExprs);
+    List<Set<FeatureExpr>> featureExprsCombos = getFeatureExprsCombos(featureExprs);
     Set<Set<Integer>> unsatVertexCombos =
         calculateUnsatVertexCombos(featureExprs, featureExprsCombos);
-    unsatVertexCombos =
-        removeUnsatVertexCombosCoveredByMex(unsatVertexCombos, mutuallyExclusiveVertices);
 
-    Collection<SingleFeatureExpr> coloring =
-        getColoring(featureExprs, mutuallyExclusiveVertices, unsatVertexCombos);
+    Collection<SingleFeatureExpr> coloring = getColoring(featureExprs, unsatVertexCombos);
 
     Set<String> colors = getColors(coloring);
     Set<Set<SingleFeatureExpr>> groupingByColors = groupColoringByColors(coloring, colors);
@@ -66,41 +59,22 @@ public class MinConfigsGenerator {
     return getConfigs(featureExprsByColor, singleFeatureExprScalaSet);
   }
 
-  private static Set<Set<Integer>> removeUnsatVertexCombosCoveredByMex(
-      Set<Set<Integer>> unsatVertexCombos, Set<Pair<Integer, Integer>> mutuallyExclusiveVertices) {
-    Set<Set<Integer>> combosToRemove = new HashSet<>();
+  private static Set<Set<Integer>> calculateUnsatVertexCombos(
+      List<FeatureExpr> featureExprs, List<Set<FeatureExpr>> featureExprsCombos) {
+    Set<Set<FeatureExpr>> unsatCombos = getUnsatCombos(featureExprsCombos);
 
-    for (Pair<Integer, Integer> mexVertices : mutuallyExclusiveVertices) {
-      Set<Integer> vertices = new HashSet<>();
-      vertices.add(mexVertices.getLeft());
-      vertices.add(mexVertices.getRight());
-
-      for (Set<Integer> unsat : unsatVertexCombos) {
-        if (unsat.containsAll(vertices)) {
-          combosToRemove.add(unsat);
-        }
-      }
-    }
-
-    Set<Set<Integer>> res = new HashSet<>(unsatVertexCombos);
-    res.removeAll(combosToRemove);
-
-    return res;
+    return getUnSatVertexCombos(featureExprs, unsatCombos);
   }
 
-  private static Set<Set<Integer>> calculateUnsatVertexCombos(
-      List<FeatureExpr> featureExprs, Set<Set<FeatureExpr>> featureExprsCombos) {
+  // TODO might be slow
+  private static Set<Set<Integer>> getUnSatVertexCombos(
+      List<FeatureExpr> featureExprs, Set<Set<FeatureExpr>> unsatCombos) {
     Set<Set<Integer>> unsatVertexCombos = new HashSet<>();
 
-    for (Set<FeatureExpr> featureExprsInCombo : featureExprsCombos) {
-      if (isSatCombo(featureExprsInCombo)) {
-        continue;
-      }
-
-      // TODO might be slow
+    for (Set<FeatureExpr> unsatCombo : unsatCombos) {
       Set<Integer> unsatVertexCombo = new HashSet<>();
 
-      for (FeatureExpr featureExpr : featureExprsInCombo) {
+      for (FeatureExpr featureExpr : unsatCombo) {
         int index = featureExprs.indexOf(featureExpr);
         unsatVertexCombo.add(index);
       }
@@ -109,6 +83,32 @@ public class MinConfigsGenerator {
     }
 
     return unsatVertexCombos;
+  }
+
+  private static Set<Set<FeatureExpr>> getUnsatCombos(List<Set<FeatureExpr>> featureExprsCombos) {
+    Set<Set<FeatureExpr>> unsatCombos = new HashSet<>();
+
+    for (Set<FeatureExpr> featureExprsInCombo : featureExprsCombos) {
+      if (isSatCombo(featureExprsInCombo)) {
+        continue;
+      }
+
+      boolean isAlreadyCovered = false;
+
+      for (Set<FeatureExpr> unsatCombo : unsatCombos) {
+        if (featureExprsInCombo.containsAll(unsatCombo)) {
+          isAlreadyCovered = true;
+
+          break;
+        }
+      }
+
+      if (!isAlreadyCovered) {
+        unsatCombos.add(featureExprsInCombo);
+      }
+    }
+
+    return unsatCombos;
   }
 
   private static boolean isSatCombo(Set<FeatureExpr> featureExprs) {
@@ -121,8 +121,8 @@ public class MinConfigsGenerator {
     return formula.isSatisfiable();
   }
 
-  private static Set<Set<FeatureExpr>> getFeatureExprsCombos(List<FeatureExpr> featureExprs) {
-    Set<Set<FeatureExpr>> combos = new HashSet<>();
+  private static List<Set<FeatureExpr>> getFeatureExprsCombos(List<FeatureExpr> featureExprs) {
+    List<Set<FeatureExpr>> combos = new ArrayList<>();
     int comboMaxLength = featureExprs.size();
 
     for (int i = 2; i <= comboMaxLength; i++) {
@@ -169,73 +169,6 @@ public class MinConfigsGenerator {
     }
 
     return uniqueFeatureExprs;
-  }
-
-  //  private static List<FeatureExpr> removeImplications(List<FeatureExpr> featureExprs) {
-  //    List<FeatureExpr> implFormula = new ArrayList<>();
-  //
-  //    for (FeatureExpr featureExpr1 : featureExprs) {
-  //      boolean some = true;
-  //
-  //      for (FeatureExpr featureExpr2 : implFormula) {
-  //        if (featureExpr2.implies(featureExpr1).isTautology()) {
-  //          some = false;
-  //          break;
-  //        }
-  //      }
-  //
-  //      if (some) {
-  //        implFormula.add(featureExpr1);
-  //      }
-  //    }
-
-  //    Set<FeatureExpr> implied = new HashSet<>();
-  //
-  //    for (int i = 0; i < (featureExprs.size() - 1); i++) {
-  //      FeatureExpr featureExpr1 = featureExprs.get(i);
-  //
-  //      for (int j = 0; j < featureExprs.size(); j++) {
-  //        FeatureExpr featureExpr2 = featureExprs.get(j);
-  //
-  //        if(i == j) {
-  //          continue;
-  //        }
-  //
-  //        if (featureExpr1.implies(featureExpr2).isTautology()) {
-  //          implied.add(featureExpr2);
-  //        }
-  //      }
-  //    }
-  //
-  //    List<FeatureExpr> x = new ArrayList<>();
-  //
-  //    for(FeatureExpr featureExpr : featureExprs) {
-  //      if(implied.contains(featureExpr)) {
-  //        continue;
-  //      }
-  //
-  //      x.add(featureExpr);
-  //    }
-  //
-  //    return x;
-
-  //    throw new UnsupportedOperationException("Implement");
-  //  }
-
-  private static Set<FeatureExpr> getCounterExample(Set<Set<FeatureExpr>> featureExprsByColor) {
-    for (Set<FeatureExpr> featureExprs : featureExprsByColor) {
-      FeatureExpr formula = FeatureExprFactory.True();
-
-      for (FeatureExpr featureExpr : featureExprs) {
-        formula = formula.and(featureExpr);
-      }
-
-      if (!formula.isSatisfiable()) {
-        return featureExprs;
-      }
-    }
-
-    return new HashSet<>();
   }
 
   private static Set<Set<String>> getConfigs(
@@ -356,9 +289,7 @@ public class MinConfigsGenerator {
   }
 
   private static Collection<SingleFeatureExpr> getColoring(
-      List<FeatureExpr> featureExprs,
-      Set<Pair<Integer, Integer>> mutuallyExclusiveVertices,
-      Set<Set<Integer>> unsatVertexCombos) {
+      List<FeatureExpr> featureExprs, Set<Set<Integer>> unsatVertexCombos) {
 
     int colors = 0;
 
@@ -366,11 +297,8 @@ public class MinConfigsGenerator {
       Set<SingleFeatureExpr> interestingFeatures = addInterestingFeatures(featureExprs, colors);
 
       FeatureExpr assignedColors = assignColors(featureExprs, colors);
-      FeatureExpr mutuallyExclusiveConstraints =
-          getMutuallyExclusiveConstraints(mutuallyExclusiveVertices, colors);
       FeatureExpr unsatCombosConstraints = getUnsatCombos(unsatVertexCombos, colors);
-      FeatureExpr formula = assignedColors.and(mutuallyExclusiveConstraints);
-      formula = formula.and(unsatCombosConstraints);
+      FeatureExpr formula = assignedColors.and(unsatCombosConstraints);
 
       if (!formula.isSatisfiable()) {
         colors++;
@@ -420,36 +348,6 @@ public class MinConfigsGenerator {
     return JavaConverters.asJavaCollection(assign.get()._1);
   }
 
-  //  private static FeatureExpr checkSatConfigAssign(
-  //      Collection<SingleFeatureExpr> coloring, List<FeatureExpr> featureExprs, Set<String>
-  // options) {
-  //    Set<String> colors = getColors(coloring);
-  //    Set<Set<SingleFeatureExpr>> groupingByColors = groupColoringByColors(coloring, colors);
-  //    Set<Set<Integer>> constraintIndexesByColors =
-  // getConstraintIndexesByColors(groupingByColors);
-  //    Set<Set<FeatureExpr>> featureExprsByColor =
-  //        getFeatureExprsByColor(featureExprs, constraintIndexesByColors);
-  //
-  //    Set<SingleFeatureExpr> singleFeatureExprs = parseSingleFeatureExprs(options);
-  //    scala.collection.immutable.Set<SingleFeatureExpr> singleFeatureExprScalaSet =
-  //        JavaConverters.asScalaSet(singleFeatureExprs).toSet();
-  //
-  //    Set<FeatureExpr> counterExample =
-  //        getCounterExample(featureExprsByColor, singleFeatureExprScalaSet);
-  //
-  //    if (!counterExample.isEmpty()) {
-  //      FeatureExpr counterExampleFormula = FeatureExprFactory.True();
-  //
-  //      for (FeatureExpr featureExpr : counterExample) {
-  //        counterExampleFormula.and(featureExpr);
-  //      }
-  //
-  //      return counterExampleFormula.not();
-  //    }
-  //
-  //    return FeatureExprFactory.True();
-  //  }
-
   private static Set<SingleFeatureExpr> addInterestingFeatures(
       List<FeatureExpr> featureExprs, int color) {
     Set<SingleFeatureExpr> newFeatures = new HashSet<>();
@@ -462,44 +360,6 @@ public class MinConfigsGenerator {
     }
 
     return newFeatures;
-  }
-
-  //  private static Set<SingleFeatureExpr> addInterestingFeatures(
-  //      Set<SingleFeatureExpr> interestingFeatures, List<FeatureExpr> featureExprs, int color) {
-  //    Set<SingleFeatureExpr> newFeatures = new HashSet<>();
-  //
-  //    for (int i = 0; i < featureExprs.size(); i++) {
-  //      SingleFeatureExpr newFeature = (SingleFeatureExpr) SAT_PARSER.parse(createVertex(i,
-  // color));
-  //      newFeatures.add(newFeature);
-  //    }
-  //
-  //    interestingFeatures.addAll(newFeatures);
-  //
-  //    return interestingFeatures;
-  //  }
-
-  private static FeatureExpr getMutuallyExclusiveConstraints(
-      Set<Pair<Integer, Integer>> mutuallyExclusiveVertices, int colors) {
-    FeatureExpr mutuallyExclusiveConstraints = FeatureExprFactory.True();
-
-    for (int color = 0; color <= colors; color++) {
-      FeatureExpr mutuallyExclusiveConstraint = FeatureExprFactory.True();
-
-      for (Pair<Integer, Integer> mutuallyExclusiveVertex : mutuallyExclusiveVertices) {
-        FeatureExpr coloredVertex1 =
-            SAT_PARSER.parse(createVertex(mutuallyExclusiveVertex.getLeft(), color));
-        FeatureExpr coloredVertex2 =
-            SAT_PARSER.parse(createVertex(mutuallyExclusiveVertex.getRight(), color));
-
-        FeatureExpr mutuallyExclusiveFeatureExpr = coloredVertex1.and(coloredVertex2).not();
-        mutuallyExclusiveConstraint = mutuallyExclusiveConstraint.and(mutuallyExclusiveFeatureExpr);
-      }
-
-      mutuallyExclusiveConstraints = mutuallyExclusiveConstraints.and(mutuallyExclusiveConstraint);
-    }
-
-    return mutuallyExclusiveConstraints;
   }
 
   private static String createVertex(int vertex, int color) {
@@ -521,26 +381,6 @@ public class MinConfigsGenerator {
     }
 
     return assignedColors;
-  }
-
-  private static Set<Pair<Integer, Integer>> calculateVertexMutualExclusions(
-      List<FeatureExpr> featureExprs) {
-    Set<Pair<Integer, Integer>> mutuallyExclusiveFeatureExprs = new HashSet<>();
-
-    for (int i = 0; i < (featureExprs.size() - 1); i++) {
-      FeatureExpr featureExpr1 = featureExprs.get(i);
-
-      for (int j = (i + 1); j < featureExprs.size(); j++) {
-        FeatureExpr featureExpr2 = featureExprs.get(j);
-
-        if (featureExpr1.mex(featureExpr2).isTautology()) {
-          Pair<Integer, Integer> pair = Pair.of(i, j);
-          mutuallyExclusiveFeatureExprs.add(pair);
-        }
-      }
-    }
-
-    return mutuallyExclusiveFeatureExprs;
   }
 
   private static List<FeatureExpr> parseFeatureExprsAsBDD(List<String> taintConstraints) {
