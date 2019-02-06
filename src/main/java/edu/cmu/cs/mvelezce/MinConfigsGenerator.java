@@ -41,13 +41,14 @@ public class MinConfigsGenerator {
     featureExprs = removeRedundant(featureExprs);
     featureExprs = toSatFeatureExprs(featureExprs);
 
-    Set<Pair<Integer, Integer>> mutuallyExclusiveVertices = new HashSet<>();
-//        calculateVertexMutualExclusions(featureExprs);
+    Set<Pair<Integer, Integer>> mutuallyExclusiveVertices =
+        calculateVertexMutualExclusions(featureExprs);
 
-    // TODO remove mutually exclusive from unsat combos.
     Set<Set<FeatureExpr>> featureExprsCombos = getFeatureExprsCombos(featureExprs);
     Set<Set<Integer>> unsatVertexCombos =
         calculateUnsatVertexCombos(featureExprs, featureExprsCombos);
+    unsatVertexCombos =
+        removeUnsatVertexCombosCoveredByMex(unsatVertexCombos, mutuallyExclusiveVertices);
 
     Collection<SingleFeatureExpr> coloring =
         getColoring(featureExprs, mutuallyExclusiveVertices, unsatVertexCombos);
@@ -63,6 +64,28 @@ public class MinConfigsGenerator {
         JavaConverters.asScalaSet(singleFeatureExprs).toSet();
 
     return getConfigs(featureExprsByColor, singleFeatureExprScalaSet);
+  }
+
+  private static Set<Set<Integer>> removeUnsatVertexCombosCoveredByMex(
+      Set<Set<Integer>> unsatVertexCombos, Set<Pair<Integer, Integer>> mutuallyExclusiveVertices) {
+    Set<Set<Integer>> combosToRemove = new HashSet<>();
+
+    for (Pair<Integer, Integer> mexVertices : mutuallyExclusiveVertices) {
+      Set<Integer> vertices = new HashSet<>();
+      vertices.add(mexVertices.getLeft());
+      vertices.add(mexVertices.getRight());
+
+      for (Set<Integer> unsat : unsatVertexCombos) {
+        if (unsat.containsAll(vertices)) {
+          combosToRemove.add(unsat);
+        }
+      }
+    }
+
+    Set<Set<Integer>> res = new HashSet<>(unsatVertexCombos);
+    res.removeAll(combosToRemove);
+
+    return res;
   }
 
   private static Set<Set<Integer>> calculateUnsatVertexCombos(
@@ -310,7 +333,8 @@ public class MinConfigsGenerator {
         }
       }
 
-      // TODO remove all the feature expressions that we have identified the color from the coloring
+      // TODO removeUnsatVertexCombosCoveredByMex all the feature expressions that we have
+      // identified the color from the coloring
 
       groupedColoring.add(colorGroup);
     }
