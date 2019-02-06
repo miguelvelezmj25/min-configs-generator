@@ -10,40 +10,39 @@ import org.junit.Test;
 public class MinConfigsGeneratorTest {
 
   @Test
-  public void entry() {
+  public void getConfigs_forExampleShowingNeedForCheckingUnsatConfigCombos() {
     Set<String> options = new HashSet<>();
     options.add("A");
     options.add("B");
-    options.add("C");
 
     List<String> constraints = new ArrayList<>();
-    //    taintConstraints.add("A");
-    //    taintConstraints.add("!A");
-    //    taintConstraints.add("A & C");
-    //    taintConstraints.add("A & !C");
-    //    taintConstraints.add("B");
-    //    taintConstraints.add("!B");
+    constraints.add("!A"); // 0
+    constraints.add("A"); // 0
+    constraints.add("B"); // 1
+    constraints.add("(!A && B) || (A && !B)"); // 2
 
-    //    taintConstraints.add("A");
-    //    taintConstraints.add("!A");
-    //    taintConstraints.add("B");
-    //    taintConstraints.add("!B");
-    //    taintConstraints.add("A & C");
-    //    taintConstraints.add("A & !C");
-    //    taintConstraints.add("B & C");
-    //    taintConstraints.add("B & !C");
+    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
+    System.out.println(configs);
 
-    //    taintConstraints.add("A");
-    //    taintConstraints.add("!A");
-    //    taintConstraints.add("B");
-    //    taintConstraints.add("!B");
-    //    taintConstraints.add("A & !B");
-    //    taintConstraints.add("!A & !B");
-    //    taintConstraints.add("!A & B");
-    //    taintConstraints.add("!A & !B");
-    //    taintConstraints.add("!(A | B)");
+    Assert.assertEquals(2, configs.size());
+  }
 
-    MinConfigsGenerator.getConfigs(options, constraints);
+  @Test
+  public void getConfigs0() {
+    Set<String> options = new HashSet<>();
+    options.add("A");
+    options.add("B");
+
+    List<String> constraints = new ArrayList<>();
+    constraints.add("A");
+    constraints.add("!A");
+    constraints.add("B");
+    constraints.add("!B");
+
+    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
+    System.out.println(configs);
+
+    Assert.assertEquals(2, configs.size());
   }
 
   @Test
@@ -51,7 +50,6 @@ public class MinConfigsGeneratorTest {
     Set<String> options = new HashSet<>();
     options.add("A");
     options.add("B");
-    options.add("C");
 
     List<String> constraints = new ArrayList<>();
     constraints.add("(!A && !B) || (!A && B)");
@@ -72,7 +70,6 @@ public class MinConfigsGeneratorTest {
     Set<String> options = new HashSet<>();
     options.add("A");
     options.add("B");
-    options.add("C");
 
     List<String> constraints = new ArrayList<>();
     constraints.add("A");
@@ -171,7 +168,6 @@ public class MinConfigsGeneratorTest {
     Set<String> options = new HashSet<>();
     options.add("A");
     options.add("B");
-    options.add("C");
 
     List<String> constraints = new ArrayList<>();
     constraints.add("A");
@@ -280,5 +276,49 @@ public class MinConfigsGeneratorTest {
     System.out.println(configs);
 
     Assert.assertEquals(3, configs.size());
+  }
+
+  @Test
+  public void getConfigsAndContext() {
+    Set<String> options = new HashSet<>();
+    options.add("A");
+    options.add("B");
+    options.add("C");
+    options.add("D");
+
+    List<String> constraints = new ArrayList<>();
+    constraints.add(
+        "(!A && !B && !C && !D) || (A && !B && !C && !D) || (!A && B && !C && !D) || (!A && !B && C && !D) || (A && B && !C && !D) || (!A && !B && !C && D) || (!A && B && C && !D) || (A && !B && !C && D) || (!A && B && !C && D) || (!A && !B && C && D) || (A && B && !C && D) || (!A && B && C && D)");
+    constraints.add("(A && !B && C && !D) || (A && B && C && !D)");
+    constraints.add("(A && !B && C && D) || (A && B && C && D)");
+    constraints.add(
+        "(!A && !B && !C && !D) || (A && !B && !C && !D) || (!A && B && !C && !D) || (!A && !B && C && !D) || (A && !B && C && !D) || (!A && !B && !C && D) || (!A && B && C && !D) || (A && !B && !C && D) || (!A && B && !C && D) || (!A && !B && C && D) || (A && !B && C && D) || (!A && B && C && D)");
+    constraints.add("(A && B && !C && !D) || (A && B && C && !D)");
+    constraints.add("(A && B && !C && D) || (A && B && C && D)");
+    constraints.add(
+        "(!A && !B && !C && !D) || (!A && B && !C && !D) || (!A && !B && C && !D) || (!A && !B && !C && D) || (!A && B && C && !D) || (!A && B && !C && D) || (!A && !B && C && D) || (!A && B && C && D)");
+    constraints.add(
+        "(A && !B && !C && !D) || (A && B && !C && !D) || (A && !B && C && !D) || (A && !B && !C && D) || (A && B && C && !D) || (A && B && !C && D) || (A && !B && C && D) || (A && B && C && D)");
+    constraints.add(
+        "(!A && !B && !C && !D) || (!A && B && !C && !D) || (!A && !B && C && !D) || (!A && !B && !C && D) || (!A && B && C && !D) || (!A && B && !C && D) || (!A && !B && C && D) || (!A && B && C && D)");
+    constraints.add(
+        "(A && !B && !C && !D) || (A && !B && C && !D) || (A && !B && !C && D) || (A && !B && C && D)");
+    constraints.add(
+        "(A && B && !C && !D) || (A && B && C && !D) || (A && B && !C && D) || (A && B && C && D)");
+    constraints.add(
+        "(!A && !B && !C && !D) || (!A && B && !C && !D) || (!A && !B && C && !D) || (!A && !B && !C && D) || (!A && B && C && !D) || (!A && B && !C && D) || (!A && !B && C && D) || (!A && B && C && D)");
+    constraints.add(
+        "(A && !B && !C && !D) || (A && B && !C && !D) || (A && !B && !C && D) || (A && B && !C && D)");
+    constraints.add(
+        "(A && !B && C && !D) || (A && B && C && !D) || (A && !B && C && D) || (A && B && C && D)");
+    constraints.add(
+        "(!A && !B && !C && !D) || (!A && B && !C && !D) || (!A && !B && C && !D) || (!A && !B && !C && D) || (!A && B && C && !D) || (!A && B && !C && D) || (!A && !B && C && D) || (!A && B && C && D)");
+    constraints.add(
+        "(A && !B && !C && !D) || (A && B && !C && !D) || (A && !B && C && !D) || (A && !B && !C && D) || (A && B && C && !D) || (A && B && !C && D) || (A && !B && C && D) || (A && B && C && D)");
+
+    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
+    System.out.println(configs);
+
+    Assert.assertEquals(4, configs.size());
   }
 }
