@@ -35,7 +35,7 @@ public class MinConfigsGenerator {
    * @param constraints the partial configurations.
    * @return
    */
-  public static Set<Set<String>> getConfigs(Set<String> options, List<String> constraints) {
+  public static Set<Set<Set<String>>> getSatConfigs(Set<String> options, List<String> constraints) {
     List<FeatureExpr> featureExprs = parseFeatureExprsAsBDD(constraints);
     featureExprs = removeRedundant(featureExprs);
     featureExprs = toSatFeatureExprs(featureExprs);
@@ -44,19 +44,24 @@ public class MinConfigsGenerator {
     Set<Set<Integer>> unsatVertexCombos =
         calculateUnsatVertexCombos(featureExprs, featureExprsCombos);
 
-    Collection<SingleFeatureExpr> coloring = getColoring(featureExprs, unsatVertexCombos);
+    Set<Collection<SingleFeatureExpr>> colorings = getColorings(featureExprs, unsatVertexCombos);
+    Set<Set<Set<String>>> satConfigs = new HashSet<>();
 
-    Set<String> colors = getColors(coloring);
-    Set<Set<SingleFeatureExpr>> groupingByColors = groupColoringByColors(coloring, colors);
-    Set<Set<Integer>> constraintIndexesByColors = getConstraintIndexesByColors(groupingByColors);
-    Set<Set<FeatureExpr>> featureExprsByColor =
-        getFeatureExprsByColor(featureExprs, constraintIndexesByColors);
+    for (Collection<SingleFeatureExpr> coloring : colorings) {
+      Set<String> colors = getColors(coloring);
+      Set<Set<SingleFeatureExpr>> groupingByColors = groupColoringByColors(coloring, colors);
+      Set<Set<Integer>> constraintIndexesByColors = getConstraintIndexesByColors(groupingByColors);
+      Set<Set<FeatureExpr>> featureExprsByColor =
+          getFeatureExprsByColor(featureExprs, constraintIndexesByColors);
 
-    Set<SingleFeatureExpr> singleFeatureExprs = parseSingleFeatureExprs(options);
-    scala.collection.immutable.Set<SingleFeatureExpr> singleFeatureExprScalaSet =
-        JavaConverters.asScalaSet(singleFeatureExprs).toSet();
+      Set<SingleFeatureExpr> singleFeatureExprs = parseSingleFeatureExprs(options);
+      scala.collection.immutable.Set<SingleFeatureExpr> singleFeatureExprScalaSet =
+          JavaConverters.asScalaSet(singleFeatureExprs).toSet();
 
-    return getConfigs(featureExprsByColor, singleFeatureExprScalaSet);
+      Set<Set<String>> configs = getConfigs(featureExprsByColor, singleFeatureExprScalaSet);
+      satConfigs.add(configs);
+    }
+    return satConfigs;
   }
 
   private static Set<Set<Integer>> calculateUnsatVertexCombos(
@@ -288,9 +293,10 @@ public class MinConfigsGenerator {
     return colors;
   }
 
-  private static Collection<SingleFeatureExpr> getColoring(
+  private static Set<Collection<SingleFeatureExpr>> getColorings(
       List<FeatureExpr> featureExprs, Set<Set<Integer>> unsatVertexCombos) {
 
+    Set<Collection<SingleFeatureExpr>> colorings = new HashSet<>();
     int colors = 0;
 
     while (true) {
@@ -306,7 +312,21 @@ public class MinConfigsGenerator {
         continue;
       }
 
-      return getColoringAssign(formula, interestingFeatures);
+      while (formula.isSatisfiable()) {
+        Collection<SingleFeatureExpr> coloring = getColoringAssign(formula, interestingFeatures);
+        colorings.add(coloring);
+
+        FeatureExpr coloringFormula = FeatureExprFactory.True();
+
+        for (SingleFeatureExpr singleFeatureExpr : coloring) {
+          coloringFormula = coloringFormula.and(singleFeatureExpr);
+        }
+
+        coloringFormula = coloringFormula.not();
+        formula = formula.and(coloringFormula);
+      }
+
+      return colorings;
     }
   }
 

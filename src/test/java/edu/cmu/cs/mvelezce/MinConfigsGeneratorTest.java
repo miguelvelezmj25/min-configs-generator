@@ -21,10 +21,13 @@ public class MinConfigsGeneratorTest {
     constraints.add("B"); // 1
     constraints.add("(!A && B) || (A && !B)"); // 2
 
-    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
-    System.out.println(configs);
+    Set<Set<Set<String>>> satConfigs = MinConfigsGenerator.getSatConfigs(options, constraints);
 
-    Assert.assertEquals(2, configs.size());
+    for (Set<Set<String>> configs : satConfigs) {
+      System.out.println(configs);
+    }
+
+    Assert.assertEquals(2, satConfigs.iterator().next().size());
   }
 
   @Test
@@ -39,10 +42,13 @@ public class MinConfigsGeneratorTest {
     constraints.add("B");
     constraints.add("!B");
 
-    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
-    System.out.println(configs);
+    Set<Set<Set<String>>> satConfigs = MinConfigsGenerator.getSatConfigs(options, constraints);
 
-    Assert.assertEquals(2, configs.size());
+    for (Set<Set<String>> configs : satConfigs) {
+      System.out.println(configs);
+    }
+
+    Assert.assertEquals(2, satConfigs.iterator().next().size());
   }
 
   @Test
@@ -59,10 +65,13 @@ public class MinConfigsGeneratorTest {
     constraints.add("(!A && !B)");
     constraints.add("(!A && B) || (A && !B) || (A && B)");
 
-    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
-    System.out.println(configs);
+    Set<Set<Set<String>>> satConfigs = MinConfigsGenerator.getSatConfigs(options, constraints);
 
-    Assert.assertEquals(2, configs.size());
+    for (Set<Set<String>> configs : satConfigs) {
+      System.out.println(configs);
+    }
+
+    Assert.assertEquals(2, satConfigs.iterator().next().size());
   }
 
   @Test
@@ -75,10 +84,13 @@ public class MinConfigsGeneratorTest {
     constraints.add("A");
     constraints.add("A && B");
 
-    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
-    System.out.println(configs);
+    Set<Set<Set<String>>> satConfigs = MinConfigsGenerator.getSatConfigs(options, constraints);
 
-    Assert.assertEquals(1, configs.size());
+    for (Set<Set<String>> configs : satConfigs) {
+      System.out.println(configs);
+    }
+
+    Assert.assertEquals(1, satConfigs.iterator().next().size());
   }
 
   @Test
@@ -104,10 +116,13 @@ public class MinConfigsGeneratorTest {
     constraints.add("(!A && B) || (A && !B)");
     constraints.add("(A && B)");
 
-    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
-    System.out.println(configs);
+    Set<Set<Set<String>>> satConfigs = MinConfigsGenerator.getSatConfigs(options, constraints);
 
-    Assert.assertEquals(3, configs.size());
+    for (Set<Set<String>> configs : satConfigs) {
+      System.out.println(configs);
+    }
+
+    Assert.assertEquals(3, satConfigs.iterator().next().size());
   }
 
   @Test
@@ -130,10 +145,13 @@ public class MinConfigsGeneratorTest {
     constraints.add("A && C");
     constraints.add("A && !C");
 
-    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
-    System.out.println(configs);
+    Set<Set<Set<String>>> satConfigs = MinConfigsGenerator.getSatConfigs(options, constraints);
 
-    Assert.assertEquals(3, configs.size());
+    for (Set<Set<String>> configs : satConfigs) {
+      System.out.println(configs);
+    }
+
+    Assert.assertEquals(3, satConfigs.iterator().next().size());
   }
 
   @Test
@@ -157,10 +175,13 @@ public class MinConfigsGeneratorTest {
     constraints.add("!A && B");
     constraints.add("!A && !B");
 
-    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
-    System.out.println(configs);
+    Set<Set<Set<String>>> satConfigs = MinConfigsGenerator.getSatConfigs(options, constraints);
 
-    Assert.assertEquals(3, configs.size());
+    for (Set<Set<String>> configs : satConfigs) {
+      System.out.println(configs);
+    }
+
+    Assert.assertEquals(3, satConfigs.iterator().next().size());
   }
 
   @Test
@@ -176,10 +197,13 @@ public class MinConfigsGeneratorTest {
     constraints.add("A && B");
     constraints.add("A && !B");
 
-    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
-    System.out.println(configs);
+    Set<Set<Set<String>>> satConfigs = MinConfigsGenerator.getSatConfigs(options, constraints);
 
-    Assert.assertEquals(3, configs.size());
+    for (Set<Set<String>> configs : satConfigs) {
+      System.out.println(configs);
+    }
+
+    Assert.assertEquals(3, satConfigs.iterator().next().size());
   }
 
   @Test
@@ -204,10 +228,13 @@ public class MinConfigsGeneratorTest {
     constraints.add("(A && !B && !C) || (A && B && !C)");
     constraints.add("(A && !B && C) || (A && B && C)");
 
-    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
-    System.out.println(configs);
+    Set<Set<Set<String>>> satConfigs = MinConfigsGenerator.getSatConfigs(options, constraints);
 
-    Assert.assertEquals(3, configs.size());
+    for (Set<Set<String>> configs : satConfigs) {
+      System.out.println(configs);
+    }
+
+    Assert.assertEquals(3, satConfigs.iterator().next().size());
   }
 
   @Test
@@ -243,10 +270,13 @@ public class MinConfigsGeneratorTest {
     constraints.add("(!A && B && !C) || (A && B && !C)");
     constraints.add("(!A && B && C) || (A && B && C)");
 
-    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
-    System.out.println(configs);
+    Set<Set<Set<String>>> satConfigs = MinConfigsGenerator.getSatConfigs(options, constraints);
 
-    Assert.assertEquals(3, configs.size());
+    for (Set<Set<String>> configs : satConfigs) {
+      System.out.println(configs);
+    }
+
+    Assert.assertEquals(3, satConfigs.iterator().next().size());
   }
 
   @Test
@@ -258,24 +288,27 @@ public class MinConfigsGeneratorTest {
 
     List<String> constraints = new ArrayList<>();
 
+    constraints.add("(!A && !B && !C) || (A && !B && !C) || (!A && !B && C) || (A && !B && C)");
+    constraints.add("(!A && B && !C) || (A && B && !C)");
+    constraints.add("(!A && B && C) || (A && B && C)");
     constraints.add("(!A && !B && !C) || (!A && !B && C)");
     constraints.add(
         "(A && !B && !C) || (!A && B && !C) || (A && B && !C) || (A && !B && C) || (!A && B && C) || (A && B && C)");
     constraints.add("(!A && !B && !C) || (!A && B && !C) || (!A && !B && C) || (!A && B && C)");
     constraints.add("(A && !B && !C) || (A && B && !C) || (A && !B && C) || (A && B && C)");
     constraints.add("(!A && !B && !C) || (A && !B && !C) || (!A && !B && C) || (A && !B && C)");
-    constraints.add("(!A && B && !C) || (A && B && !C)");
-    constraints.add("(!A && B && C) || (A && B && C)");
+    constraints.add("(!A && B && !C) || (A && B && !C) || (!A && B && C) || (A && B && C)");
     constraints.add("(!A && !B && !C) || (!A && B && !C) || (!A && !B && C) || (!A && B && C)");
     constraints.add("(A && !B && !C) || (A && B && !C)");
     constraints.add("(A && !B && C) || (A && B && C)");
-    constraints.add("(!A && !B && !C) || (A && !B && !C) || (!A && !B && C) || (A && !B && C)");
-    constraints.add("(!A && B && !C) || (A && B && !C) || (!A && B && C) || (A && B && C)");
 
-    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
-    System.out.println(configs);
+    Set<Set<Set<String>>> satConfigs = MinConfigsGenerator.getSatConfigs(options, constraints);
 
-    Assert.assertEquals(3, configs.size());
+    for (Set<Set<String>> configs : satConfigs) {
+      System.out.println(configs);
+    }
+
+    Assert.assertEquals(3, satConfigs.iterator().next().size());
   }
 
   @Test
@@ -316,9 +349,33 @@ public class MinConfigsGeneratorTest {
     constraints.add(
         "(A && !B && !C && !D) || (A && B && !C && !D) || (A && !B && C && !D) || (A && !B && !C && D) || (A && B && C && !D) || (A && B && !C && D) || (A && !B && C && D) || (A && B && C && D)");
 
-    Set<Set<String>> configs = MinConfigsGenerator.getConfigs(options, constraints);
-    System.out.println(configs);
+    Set<Set<Set<String>>> satConfigs = MinConfigsGenerator.getSatConfigs(options, constraints);
 
-    Assert.assertEquals(4, configs.size());
+    for (Set<Set<String>> configs : satConfigs) {
+      System.out.println(configs);
+    }
+
+    Assert.assertEquals(4, satConfigs.iterator().next().size());
+  }
+
+  @Test
+  public void getConfigsRunningExample() {
+    Set<String> options = new HashSet<>();
+    options.add("A");
+    options.add("B");
+
+    List<String> constraints = new ArrayList<>();
+    constraints.add("A && B");
+    constraints.add("A && !B");
+    constraints.add("A");
+    constraints.add("!A");
+
+    Set<Set<Set<String>>> satConfigs = MinConfigsGenerator.getSatConfigs(options, constraints);
+
+    for (Set<Set<String>> configs : satConfigs) {
+      System.out.println(configs);
+    }
+
+    Assert.assertEquals(3, satConfigs.iterator().next().size());
   }
 }
