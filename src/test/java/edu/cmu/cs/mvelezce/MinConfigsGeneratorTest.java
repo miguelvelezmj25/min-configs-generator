@@ -402,7 +402,7 @@ public class MinConfigsGeneratorTest {
     constraints.add("B");
     constraints.add("!B");
 
-//    constraints.add("!A && !B");
+    constraints.add("!A && !B");
     constraints.add("A");
     constraints.add("B");
 
