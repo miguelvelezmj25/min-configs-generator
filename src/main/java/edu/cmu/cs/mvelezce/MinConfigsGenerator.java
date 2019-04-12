@@ -6,8 +6,9 @@ import de.fosd.typechef.featureexpr.FeatureExprParser;
 import de.fosd.typechef.featureexpr.FeatureExprParserJava;
 import de.fosd.typechef.featureexpr.FeatureModel;
 import de.fosd.typechef.featureexpr.SingleFeatureExpr;
-import de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr;
 import de.fosd.typechef.featureexpr.sat.SATFeatureModel;
+import edu.cmu.cs.mvelezce.parser.bdd.BDDFeatureExprParser;
+import edu.cmu.cs.mvelezce.parser.sat.SATFeatureExprParser;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -23,8 +24,6 @@ public class MinConfigsGenerator {
 
   private static final FeatureExprParser SAT_PARSER =
       new FeatureExprParserJava(FeatureExprFactory.sat());
-  private static final FeatureExprParser BDD_PARSER =
-      new FeatureExprParserJava(FeatureExprFactory.bdd());
   private static final FeatureModel SAT_FM = SATFeatureModel.empty();
   //  private static final FeatureModel FM = BDDFeatureModel.empty();
 
@@ -35,36 +34,29 @@ public class MinConfigsGenerator {
    * @param constraints the partial configurations.
    * @return
    */
-  public static Set<Set<Set<String>>> getSatConfigs(Set<String> options, List<String> constraints) {
-    List<FeatureExpr> featureExprs = parseFeatureExprsAsBDD(constraints);
+  public static Set<Set<String>> getSatConfigs(Set<String> options, List<String> constraints) {
+    List<FeatureExpr> featureExprs = BDDFeatureExprParser.parseFeatureExprsAsBDD(constraints);
     featureExprs = removeRedundant(featureExprs);
-    featureExprs = toSatFeatureExprs(featureExprs);
+    featureExprs = SATFeatureExprParser.toSatFeatureExprs(featureExprs);
 
     List<Set<FeatureExpr>> featureExprsCombos = getFeatureExprsCombos(featureExprs);
-    Set<Set<Integer>> unsatVertexCombos =
-        calculateUnsatVertexCombos(featureExprs, featureExprsCombos);
+    Set<Set<Integer>> unsatVertexCombos = getUnsatVertexCombos(featureExprs, featureExprsCombos);
 
-    Set<Collection<SingleFeatureExpr>> colorings = getColorings(featureExprs, unsatVertexCombos);
-    Set<Set<Set<String>>> satConfigs = new HashSet<>();
+    Collection<SingleFeatureExpr> coloring = getColoring(featureExprs, unsatVertexCombos);
+    Set<String> colors = getColors(coloring);
+    Set<Set<SingleFeatureExpr>> groupingByColors = groupColoringByColors(coloring, colors);
+    Set<Set<Integer>> constraintIndexesByColors = getConstraintIndexesByColors(groupingByColors);
+    Set<Set<FeatureExpr>> featureExprsByColor =
+        getFeatureExprsByColor(featureExprs, constraintIndexesByColors);
 
-    for (Collection<SingleFeatureExpr> coloring : colorings) {
-      Set<String> colors = getColors(coloring);
-      Set<Set<SingleFeatureExpr>> groupingByColors = groupColoringByColors(coloring, colors);
-      Set<Set<Integer>> constraintIndexesByColors = getConstraintIndexesByColors(groupingByColors);
-      Set<Set<FeatureExpr>> featureExprsByColor =
-          getFeatureExprsByColor(featureExprs, constraintIndexesByColors);
+    Set<SingleFeatureExpr> singleFeatureExprs = parseSingleFeatureExprs(options);
+    scala.collection.immutable.Set<SingleFeatureExpr> singleFeatureExprScalaSet =
+        JavaConverters.asScalaSet(singleFeatureExprs).toSet();
 
-      Set<SingleFeatureExpr> singleFeatureExprs = parseSingleFeatureExprs(options);
-      scala.collection.immutable.Set<SingleFeatureExpr> singleFeatureExprScalaSet =
-          JavaConverters.asScalaSet(singleFeatureExprs).toSet();
-
-      Set<Set<String>> configs = getConfigs(featureExprsByColor, singleFeatureExprScalaSet);
-      satConfigs.add(configs);
-    }
-    return satConfigs;
+    return getConfigs(featureExprsByColor, singleFeatureExprScalaSet);
   }
 
-  private static Set<Set<Integer>> calculateUnsatVertexCombos(
+  private static Set<Set<Integer>> getUnsatVertexCombos(
       List<FeatureExpr> featureExprs, List<Set<FeatureExpr>> featureExprsCombos) {
     Set<Set<FeatureExpr>> unsatCombos = getUnsatCombos(featureExprsCombos);
 
@@ -145,19 +137,6 @@ public class MinConfigsGenerator {
     }
 
     return combos;
-  }
-
-  private static List<FeatureExpr> toSatFeatureExprs(List<FeatureExpr> featureExprs) {
-    List<FeatureExpr> satFeatureExprs = new ArrayList<>();
-
-    for (FeatureExpr featureExpr : featureExprs) {
-      FeatureExpr satFeatureExpr = ((BDDFeatureExpr) featureExpr).toSATFeatureExpr();
-      satFeatureExprs.add(satFeatureExpr);
-    }
-
-    FeatureExprFactory.setDefault(FeatureExprFactory.sat());
-
-    return satFeatureExprs;
   }
 
   private static List<FeatureExpr> removeRedundant(List<FeatureExpr> featureExprs) {
@@ -293,10 +272,9 @@ public class MinConfigsGenerator {
     return colors;
   }
 
-  private static Set<Collection<SingleFeatureExpr>> getColorings(
+  private static Collection<SingleFeatureExpr> getColoring(
       List<FeatureExpr> featureExprs, Set<Set<Integer>> unsatVertexCombos) {
 
-    Set<Collection<SingleFeatureExpr>> colorings = new HashSet<>();
     int colors = 0;
 
     while (true) {
@@ -312,21 +290,7 @@ public class MinConfigsGenerator {
         continue;
       }
 
-      while (formula.isSatisfiable()) {
-        Collection<SingleFeatureExpr> coloring = getColoringAssign(formula, interestingFeatures);
-        colorings.add(coloring);
-
-        FeatureExpr coloringFormula = FeatureExprFactory.True();
-
-        for (SingleFeatureExpr singleFeatureExpr : coloring) {
-          coloringFormula = coloringFormula.and(singleFeatureExpr);
-        }
-
-        coloringFormula = coloringFormula.not();
-        formula = formula.and(coloringFormula);
-      }
-
-      return colorings;
+      return getColoringAssign(formula, interestingFeatures);
     }
   }
 
@@ -401,24 +365,6 @@ public class MinConfigsGenerator {
     }
 
     return assignedColors;
-  }
-
-  private static List<FeatureExpr> parseFeatureExprsAsBDD(List<String> taintConstraints) {
-    FeatureExprFactory.setDefault(FeatureExprFactory.bdd());
-    List<FeatureExpr> featureExprs = new ArrayList<>();
-
-    for (String constraint : taintConstraints) {
-      FeatureExpr featureExpr = BDD_PARSER.parse(constraint);
-
-      if (!featureExpr.isTautology()) {
-        //        featureExprs.add(FeatureExprFactory.True());
-        //      } else {
-
-        featureExprs.add(featureExpr);
-      }
-    }
-
-    return featureExprs;
   }
 
   private static Set<SingleFeatureExpr> parseSingleFeatureExprs(Set<String> options) {
