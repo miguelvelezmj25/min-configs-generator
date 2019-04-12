@@ -288,7 +288,8 @@ public class MinConfigsGeneratorTest {
 
     List<String> constraints = new ArrayList<>();
 
-    constraints.add("(!A && !B && !C) || (A && !B && !C) || (!A && !B && C) || (A && !B && C)");
+    constraints.add("(!A && !B && !C) || (A && !B && !C) || (!A && !B && C) || (A && !B && C)"); // gamma
+
     constraints.add("(!A && B && !C) || (A && B && !C)");
     constraints.add("(!A && B && C) || (A && B && C)");
     constraints.add("(!A && !B && !C) || (!A && !B && C)");
@@ -483,6 +484,35 @@ public class MinConfigsGeneratorTest {
     }
 
     Assert.assertEquals(3, satConfigs.iterator().next().size());
+  }
+
+  @Test
+  public void getSatConfigs_forTesting() {
+    Set<String> options = new HashSet<>();
+    options.add("A");
+    options.add("B");
+    options.add("C");
+
+    List<String> constraints = new ArrayList<>();
+    constraints.add("A");
+    constraints.add("!A");
+
+    constraints.add("B");
+    constraints.add("!B");
+
+    constraints.add("A && C");
+    constraints.add("A && !C");
+
+    constraints.add("B && C");
+    constraints.add("B && !C");
+
+    Set<Set<Set<String>>> satConfigs = MinConfigsGenerator.getSatConfigs(options, constraints);
+
+    for (Set<Set<String>> configs : satConfigs) {
+      System.out.println(configs);
+    }
+
+    Assert.assertEquals(2, satConfigs.iterator().next().size());
   }
 
 }
