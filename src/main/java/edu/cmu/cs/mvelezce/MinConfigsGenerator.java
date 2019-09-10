@@ -64,6 +64,18 @@ public class MinConfigsGenerator {
     return getConfigs(featureExprsByColor, singleFeatureExprScalaSet);
   }
 
+  public static List<FeatureExpr> getFeatureExprs(List<String> stringConstraints) {
+    List<FeatureExpr> bddFeatureExprs = parseAsBDDFeatureExprs(stringConstraints);
+
+    Set<Integer> indexesOfTautologies = getIndexesOfTautologies(bddFeatureExprs);
+    bddFeatureExprs = removeBDDFeatureExprs(bddFeatureExprs, indexesOfTautologies);
+
+    Set<Integer> indexesOfRedundantConstraints = getIndexesOfRedundantConstraints(bddFeatureExprs);
+    bddFeatureExprs = removeBDDFeatureExprs(bddFeatureExprs, indexesOfRedundantConstraints);
+
+    return SATFeatureExprParser.BDDFeatureExprstoSatFeatureExprs(bddFeatureExprs);
+  }
+
   private static List<String> removeStringConstraints(
       List<String> stringConstraints, Set<Integer> indexesToRemove) {
     List<String> newStringConstraints = new ArrayList<>();
