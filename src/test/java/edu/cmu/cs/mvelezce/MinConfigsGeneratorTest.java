@@ -28,6 +28,24 @@ public class MinConfigsGeneratorTest {
   }
 
   @Test
+  public void getSatConfigsX() {
+    Set<String> options = new HashSet<>();
+    options.add("DUPLICATES");
+    options.add("SEQUENTIAL");
+    options.add("JECACHESIZE");
+    options.add("SHAREDCACHE");
+    options.add("REPLICATED");
+
+    List<String> constraints = new ArrayList<>();
+    constraints.add("(!JECACHESIZE && !SHAREDCACHE && !DUPLICATES && !REPLICATED && !SEQUENTIAL) || (JECACHESIZE && SHAREDCACHE && !DUPLICATES && REPLICATED && !SEQUENTIAL) || (JECACHESIZE && !SHAREDCACHE && !DUPLICATES && !REPLICATED && !SEQUENTIAL) || (JECACHESIZE && SHAREDCACHE && !DUPLICATES && !REPLICATED && !SEQUENTIAL) || (!JECACHESIZE && SHAREDCACHE && !DUPLICATES && !REPLICATED && !SEQUENTIAL) || (!JECACHESIZE && !SHAREDCACHE && !DUPLICATES && REPLICATED && !SEQUENTIAL) || (JECACHESIZE && !SHAREDCACHE && !DUPLICATES && REPLICATED && !SEQUENTIAL) || (!JECACHESIZE && SHAREDCACHE && !DUPLICATES && REPLICATED && !SEQUENTIAL)");
+
+    Set<Set<String>> satConfig = MinConfigsGenerator.getSatConfigs(options, constraints);
+    System.out.println(satConfig);
+
+//    Assert.assertEquals(2, satConfig.size());
+  }
+
+  @Test
   public void getSatConfigs0() {
     Set<String> options = new HashSet<>();
     options.add("A");
@@ -69,16 +87,16 @@ public class MinConfigsGeneratorTest {
   public void getSatConfigs2() {
     Set<String> options = new HashSet<>();
     options.add("A");
-    options.add("B");
+//    options.add("B");
 
     List<String> constraints = new ArrayList<>();
     constraints.add("A");
-    constraints.add("A && B");
+    constraints.add("!A");
 
     Set<Set<String>> satConfig = MinConfigsGenerator.getSatConfigs(options, constraints);
     System.out.println(satConfig);
 
-    Assert.assertEquals(1, satConfig.size());
+    Assert.assertEquals(2, satConfig.size());
   }
 
   @Test

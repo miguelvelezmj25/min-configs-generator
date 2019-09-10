@@ -6,6 +6,7 @@ import de.fosd.typechef.featureexpr.FeatureExprParser;
 import de.fosd.typechef.featureexpr.FeatureExprParserJava;
 import de.fosd.typechef.featureexpr.FeatureModel;
 import de.fosd.typechef.featureexpr.SingleFeatureExpr;
+import de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr;
 import de.fosd.typechef.featureexpr.sat.SATFeatureModel;
 import edu.cmu.cs.mvelezce.parser.bdd.BDDFeatureExprParser;
 import edu.cmu.cs.mvelezce.parser.sat.SATFeatureExprParser;
@@ -14,9 +15,11 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.math3.util.Combinations;
 import scala.Option;
 import scala.Tuple2;
+import scala.collection.Iterator;
 import scala.collection.JavaConverters;
 
 /** Reimplementation and repurposing of https://github.com/ckaestne/OptimalCoverage. */
@@ -25,7 +28,7 @@ public class MinConfigsGenerator {
   private static final FeatureExprParser SAT_PARSER =
       new FeatureExprParserJava(FeatureExprFactory.sat());
   private static final FeatureModel SAT_FM = SATFeatureModel.empty();
-  //  private static final FeatureModel FM = BDDFeatureModel.empty();
+  //    private static final FeatureModel FM = BDDFeatureModel.empty();
 
   /**
    * Generate the minimum number of configurations to satisfy a set of constraints
@@ -36,13 +39,15 @@ public class MinConfigsGenerator {
    */
   public static Set<Set<String>> getSatConfigs(Set<String> options, List<String> constraints) {
     List<FeatureExpr> featureExprs = BDDFeatureExprParser.parseFeatureExprsAsBDD(constraints);
-    featureExprs = removeRedundant(featureExprs);
+//    featureExprs = removeRedundant(featureExprs);
     featureExprs = SATFeatureExprParser.toSatFeatureExprs(featureExprs);
 
-    List<Set<FeatureExpr>> featureExprsCombos = getFeatureExprsCombos(featureExprs);
-    Set<Set<Integer>> unsatVertexCombos = getUnsatVertexCombos(featureExprs, featureExprsCombos);
+    Set<Pair<Integer, Integer>> mutexVertices = MinConfigsGenerator.getMutexVertices(featureExprs);
 
-    Collection<SingleFeatureExpr> coloring = getColoring(featureExprs, unsatVertexCombos);
+    ////    List<Set<FeatureExpr>> featureExprsCombos = getFeatureExprsCombos(featureExprs);
+    //    Set<Set<Integer>> unsatVertexCombos = getUnsatVertexCombos(featureExprs, featureExprs);
+
+    Collection<SingleFeatureExpr> coloring = getColoring(featureExprs, mutexVertices, constraints);
     Set<String> colors = getColors(coloring);
     Set<Set<SingleFeatureExpr>> groupingByColors = groupColoringByColors(coloring, colors);
     Set<Set<Integer>> constraintIndexesByColors = getConstraintIndexesByColors(groupingByColors);
@@ -54,6 +59,25 @@ public class MinConfigsGenerator {
         JavaConverters.asScalaSet(singleFeatureExprs).toSet();
 
     return getConfigs(featureExprsByColor, singleFeatureExprScalaSet);
+  }
+
+  private static Set<Pair<Integer, Integer>> getMutexVertices(List<FeatureExpr> featureExprs) {
+    Set<Pair<Integer, Integer>> mutexVertices = new HashSet<>();
+
+    for (int i = 0; i < (featureExprs.size() - 1); i++) {
+      FeatureExpr featureExpr1 = featureExprs.get(i);
+
+      for (int j = (i + 1); j < featureExprs.size(); j++) {
+        FeatureExpr featureExpr2 = featureExprs.get(j);
+
+        if (featureExpr1.mex(featureExpr2).isTautology()) {
+          Pair<Integer, Integer> pair = Pair.of(i, j);
+          mutexVertices.add(pair);
+        }
+      }
+    }
+
+    return mutexVertices;
   }
 
   private static Set<Set<Integer>> getUnsatVertexCombos(
@@ -273,17 +297,40 @@ public class MinConfigsGenerator {
   }
 
   private static Collection<SingleFeatureExpr> getColoring(
-      List<FeatureExpr> featureExprs, Set<Set<Integer>> unsatVertexCombos) {
+      List<FeatureExpr> featureExprs,
+      Set<Pair<Integer, Integer>> mutexVertices,
+      List<String> constraints) {
 
     int colors = 0;
 
     while (true) {
-      Set<SingleFeatureExpr> interestingFeatures = addInterestingFeatures(featureExprs, colors);
+      System.out.println("Trying num of colors: " + (colors + 1));
+      Set<SingleFeatureExpr> interestingFeatures = assignColorsToVertices(featureExprs, colors);
 
-      FeatureExpr assignedColors = assignColors(featureExprs, colors);
-      FeatureExpr unsatCombosConstraints = getUnsatCombos(unsatVertexCombos, colors);
-      FeatureExpr formula = assignedColors.and(unsatCombosConstraints);
+      FeatureExpr colorsFormula = buildColoredFormula(featureExprs, colors);
+      FeatureExpr form = buildForm(featureExprs, colors, constraints);
+//      FeatureExpr mutexFormula = buildMutexFormula(mutexVertices, colors);
+      //      FeatureExpr equivFormula = buildEquivFormula(featureExprs, colors);
 
+      FeatureExpr formula = colorsFormula.and(form);
+      //      formula = formula.and(equivFormula);
+
+      System.out.println("Formula size: " + formula.size());
+      System.out.println();
+      //      DimacsWriter dw = DimacsWriter.instance;
+      //
+      //      try {
+      //        dw.printToDimacsDirect(formula, "work");
+      //        throw new RuntimeException("work");
+      //      } catch (AssertionError ae) {
+      //        colors++;
+      //      }
+      //    }
+
+      ////      formula
+      //
+      ////      ((SATFeatureExpr) formula).
+      //
       if (!formula.isSatisfiable()) {
         colors++;
 
@@ -294,22 +341,69 @@ public class MinConfigsGenerator {
     }
   }
 
-  private static FeatureExpr getUnsatCombos(Set<Set<Integer>> unsatVertexCombos, int colors) {
+  private static FeatureExpr buildForm(
+      List<FeatureExpr> featureExprs, int colors, List<String> constraints) {
+    FeatureExpr form = FeatureExprFactory.True();
+
+    for (int color = 0; color <= colors; color++) {
+
+      for (int vertex = 0; vertex < featureExprs.size(); vertex++) {
+        FeatureExpr coloredVertex = SAT_PARSER.parse(createVertex(vertex, color));
+        FeatureExpr featureExpr = featureExprs.get(vertex);
+        Iterator<String> tmp = featureExpr.collectDistinctFeatures().iterator();
+        Set<String> features = new HashSet<>();
+
+        while (tmp.hasNext()) {
+          features.add(tmp.next());
+        }
+
+        String constraint = constraints.get(vertex);
+
+        for (String f : features) {
+          constraint = constraint.replaceAll(f, f + "_" + color);
+        }
+
+        FeatureExpr x = BDDFeatureExprParser.parseFeatureExprAsBDD(constraint);
+        FeatureExpr y = ((BDDFeatureExpr) x).toSATFeatureExpr();
+
+        FeatureExpr z = coloredVertex.implies(y);
+        form = form.and(z);
+      }
+    }
+
+    FeatureExprFactory.setDefault(FeatureExprFactory.sat());
+
+    return form;
+  }
+
+  private static FeatureExpr buildEquivFormula(List<FeatureExpr> featureExprs, int colors) {
+    FeatureExpr equivFormula = FeatureExprFactory.True();
+
+    for (int vertex = 0; vertex < featureExprs.size(); vertex++) {
+      for (int color = 0; color <= colors; color++) {
+        FeatureExpr coloredVertex = SAT_PARSER.parse(createVertex(vertex, color));
+        FeatureExpr equivFeatureExpr = coloredVertex.implies(featureExprs.get(vertex));
+
+        equivFormula = equivFormula.and(equivFeatureExpr);
+      }
+    }
+
+    return equivFormula;
+  }
+
+  private static FeatureExpr buildMutexFormula(
+      Set<Pair<Integer, Integer>> mutexVertices, int colors) {
     FeatureExpr unsatCombosConstraints = FeatureExprFactory.True();
 
     for (int color = 0; color <= colors; color++) {
       FeatureExpr unsatCombosConstraint = FeatureExprFactory.True();
 
-      for (Set<Integer> unsatFeatureExprs : unsatVertexCombos) {
-        FeatureExpr unSatFeatureExpr = FeatureExprFactory.True();
+      for (Pair<Integer, Integer> mutexVertex : mutexVertices) {
+        FeatureExpr coloredVertex1 = SAT_PARSER.parse(createVertex(mutexVertex.getLeft(), color));
+        FeatureExpr coloredVertex2 = SAT_PARSER.parse(createVertex(mutexVertex.getRight(), color));
+        FeatureExpr mutexFeatureExpr = coloredVertex1.and(coloredVertex2).not();
 
-        for (Integer featureExpr : unsatFeatureExprs) {
-          FeatureExpr vertex = SAT_PARSER.parse(createVertex(featureExpr, color));
-          unSatFeatureExpr = unSatFeatureExpr.and(vertex);
-        }
-
-        unSatFeatureExpr = unSatFeatureExpr.not();
-        unsatCombosConstraint = unsatCombosConstraint.and(unSatFeatureExpr);
+        unsatCombosConstraint = unsatCombosConstraint.and(mutexFeatureExpr);
       }
 
       unsatCombosConstraints = unsatCombosConstraints.and(unsatCombosConstraint);
@@ -332,7 +426,7 @@ public class MinConfigsGenerator {
     return JavaConverters.asJavaCollection(assign.get()._1);
   }
 
-  private static Set<SingleFeatureExpr> addInterestingFeatures(
+  private static Set<SingleFeatureExpr> assignColorsToVertices(
       List<FeatureExpr> featureExprs, int color) {
     Set<SingleFeatureExpr> newFeatures = new HashSet<>();
 
@@ -350,7 +444,7 @@ public class MinConfigsGenerator {
     return "v" + vertex + "_" + color;
   }
 
-  private static FeatureExpr assignColors(List<FeatureExpr> featureExprs, int colors) {
+  private static FeatureExpr buildColoredFormula(List<FeatureExpr> featureExprs, int colors) {
     FeatureExpr assignedColors = FeatureExprFactory.True();
 
     for (int vertex = 0; vertex < featureExprs.size(); vertex++) {

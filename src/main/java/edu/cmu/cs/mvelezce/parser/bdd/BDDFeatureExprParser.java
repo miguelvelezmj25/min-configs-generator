@@ -16,6 +16,12 @@ public class BDDFeatureExprParser implements FeatureExprParser {
   // Suppress default constructor for noninstantiability
   private BDDFeatureExprParser() {}
 
+  public static FeatureExpr parseFeatureExprAsBDD(String constraint) {
+    FeatureExprFactory.setDefault(FeatureExprFactory.bdd());
+
+    return BDD_PARSER.parse(constraint);
+  }
+
   public static List<FeatureExpr> parseFeatureExprsAsBDD(List<String> constraints) {
     FeatureExprFactory.setDefault(FeatureExprFactory.bdd());
     List<FeatureExpr> featureExprs = new ArrayList<>();
@@ -23,9 +29,9 @@ public class BDDFeatureExprParser implements FeatureExprParser {
     for (String constraint : constraints) {
       FeatureExpr featureExpr = BDD_PARSER.parse(constraint);
 
-      if (!featureExpr.isTautology()) {
+//      if (!featureExpr.isTautology()) {
         featureExprs.add(featureExpr);
-      }
+//      }
     }
 
     return featureExprs;
