@@ -27,11 +27,11 @@ public class BDDFeatureExprParser implements FeatureExprParser {
     List<FeatureExpr> featureExprs = new ArrayList<>();
 
     for (String constraint : constraints) {
-      FeatureExpr featureExpr = BDD_PARSER.parse(constraint);
+      FeatureExpr featureExpr = parseFeatureExprAsBDD(constraint);
 
-//      if (!featureExpr.isTautology()) {
+      if (!featureExpr.isTautology()) {
         featureExprs.add(featureExpr);
-//      }
+      }
     }
 
     return featureExprs;

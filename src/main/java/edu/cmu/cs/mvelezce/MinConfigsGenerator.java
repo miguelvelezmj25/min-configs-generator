@@ -15,8 +15,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.math3.util.Combinations;
 import scala.Option;
 import scala.Tuple2;
 import scala.collection.Iterator;
@@ -34,20 +32,25 @@ public class MinConfigsGenerator {
    * Generate the minimum number of configurations to satisfy a set of constraints
    *
    * @param options the options of the program.
-   * @param constraints the partial configurations.
+   * @param stringConstraints the partial configurations.
    * @return
    */
-  public static Set<Set<String>> getSatConfigs(Set<String> options, List<String> constraints) {
-    List<FeatureExpr> featureExprs = BDDFeatureExprParser.parseFeatureExprsAsBDD(constraints);
-//    featureExprs = removeRedundant(featureExprs);
-    featureExprs = SATFeatureExprParser.toSatFeatureExprs(featureExprs);
+  public static Set<Set<String>> getSatConfigs(
+      Set<String> options, List<String> stringConstraints) {
+    List<FeatureExpr> bddFeatureExprs = parseAsBDDFeatureExprs(stringConstraints);
 
-    Set<Pair<Integer, Integer>> mutexVertices = MinConfigsGenerator.getMutexVertices(featureExprs);
+    Set<Integer> indexesOfTautologies = getIndexesOfTautologies(bddFeatureExprs);
+    stringConstraints = removeStringConstraints(stringConstraints, indexesOfTautologies);
+    bddFeatureExprs = removeBDDFeatureExprs(bddFeatureExprs, indexesOfTautologies);
 
-    ////    List<Set<FeatureExpr>> featureExprsCombos = getFeatureExprsCombos(featureExprs);
-    //    Set<Set<Integer>> unsatVertexCombos = getUnsatVertexCombos(featureExprs, featureExprs);
+    Set<Integer> indexesOfRedundantConstraints = getIndexesOfRedundantConstraints(bddFeatureExprs);
+    stringConstraints = removeStringConstraints(stringConstraints, indexesOfRedundantConstraints);
+    bddFeatureExprs = removeBDDFeatureExprs(bddFeatureExprs, indexesOfRedundantConstraints);
 
-    Collection<SingleFeatureExpr> coloring = getColoring(featureExprs, mutexVertices, constraints);
+    List<FeatureExpr> featureExprs =
+        SATFeatureExprParser.BDDFeatureExprstoSatFeatureExprs(bddFeatureExprs);
+    Collection<SingleFeatureExpr> coloring = getColoring(featureExprs, stringConstraints);
+
     Set<String> colors = getColors(coloring);
     Set<Set<SingleFeatureExpr>> groupingByColors = groupColoringByColors(coloring, colors);
     Set<Set<Integer>> constraintIndexesByColors = getConstraintIndexesByColors(groupingByColors);
@@ -61,122 +64,73 @@ public class MinConfigsGenerator {
     return getConfigs(featureExprsByColor, singleFeatureExprScalaSet);
   }
 
-  private static Set<Pair<Integer, Integer>> getMutexVertices(List<FeatureExpr> featureExprs) {
-    Set<Pair<Integer, Integer>> mutexVertices = new HashSet<>();
+  private static List<String> removeStringConstraints(
+      List<String> stringConstraints, Set<Integer> indexesToRemove) {
+    List<String> newStringConstraints = new ArrayList<>();
 
-    for (int i = 0; i < (featureExprs.size() - 1); i++) {
-      FeatureExpr featureExpr1 = featureExprs.get(i);
-
-      for (int j = (i + 1); j < featureExprs.size(); j++) {
-        FeatureExpr featureExpr2 = featureExprs.get(j);
-
-        if (featureExpr1.mex(featureExpr2).isTautology()) {
-          Pair<Integer, Integer> pair = Pair.of(i, j);
-          mutexVertices.add(pair);
-        }
+    for (int i = 0; i < stringConstraints.size(); i++) {
+      if (!indexesToRemove.contains(i)) {
+        newStringConstraints.add(stringConstraints.get(i));
       }
     }
 
-    return mutexVertices;
+    return newStringConstraints;
   }
 
-  private static Set<Set<Integer>> getUnsatVertexCombos(
-      List<FeatureExpr> featureExprs, List<Set<FeatureExpr>> featureExprsCombos) {
-    Set<Set<FeatureExpr>> unsatCombos = getUnsatCombos(featureExprsCombos);
+  private static Set<Integer> getIndexesOfRedundantConstraints(List<FeatureExpr> bddFeatureExprs) {
+    Set<Integer> indexesOfRedundantConstraints = new HashSet<>();
+    Set<FeatureExpr> uniqueConstraints = new HashSet<>();
 
-    return getUnSatVertexCombos(featureExprs, unsatCombos);
-  }
+    for (int i = 0; i < bddFeatureExprs.size(); i++) {
+      FeatureExpr featureExpr = bddFeatureExprs.get(i);
 
-  // TODO might be slow
-  private static Set<Set<Integer>> getUnSatVertexCombos(
-      List<FeatureExpr> featureExprs, Set<Set<FeatureExpr>> unsatCombos) {
-    Set<Set<Integer>> unsatVertexCombos = new HashSet<>();
-
-    for (Set<FeatureExpr> unsatCombo : unsatCombos) {
-      Set<Integer> unsatVertexCombo = new HashSet<>();
-
-      for (FeatureExpr featureExpr : unsatCombo) {
-        int index = featureExprs.indexOf(featureExpr);
-        unsatVertexCombo.add(index);
-      }
-
-      unsatVertexCombos.add(unsatVertexCombo);
-    }
-
-    return unsatVertexCombos;
-  }
-
-  private static Set<Set<FeatureExpr>> getUnsatCombos(List<Set<FeatureExpr>> featureExprsCombos) {
-    Set<Set<FeatureExpr>> unsatCombos = new HashSet<>();
-
-    for (Set<FeatureExpr> featureExprsInCombo : featureExprsCombos) {
-      if (isSatCombo(featureExprsInCombo)) {
+      if (uniqueConstraints.contains(featureExpr)) {
+        indexesOfRedundantConstraints.add(i);
         continue;
       }
 
-      boolean isAlreadyCovered = false;
-
-      for (Set<FeatureExpr> unsatCombo : unsatCombos) {
-        if (featureExprsInCombo.containsAll(unsatCombo)) {
-          isAlreadyCovered = true;
-
-          break;
-        }
-      }
-
-      if (!isAlreadyCovered) {
-        unsatCombos.add(featureExprsInCombo);
-      }
+      uniqueConstraints.add(featureExpr);
     }
 
-    return unsatCombos;
+    return indexesOfRedundantConstraints;
   }
 
-  private static boolean isSatCombo(Set<FeatureExpr> featureExprs) {
-    FeatureExpr formula = FeatureExprFactory.True();
+  private static List<FeatureExpr> removeBDDFeatureExprs(
+      List<FeatureExpr> bddFeatureExprs, Set<Integer> indexesToRemove) {
+    List<FeatureExpr> newBDDFeatureExprs = new ArrayList<>();
 
-    for (FeatureExpr featureExpr : featureExprs) {
-      formula = formula.and(featureExpr);
-    }
-
-    return formula.isSatisfiable();
-  }
-
-  private static List<Set<FeatureExpr>> getFeatureExprsCombos(List<FeatureExpr> featureExprs) {
-    List<Set<FeatureExpr>> combos = new ArrayList<>();
-    int comboMaxLength = featureExprs.size();
-
-    for (int i = 2; i <= comboMaxLength; i++) {
-      Combinations currentCombos = new Combinations(comboMaxLength, i);
-
-      for (int[] currentCombo : currentCombos) {
-        Set<FeatureExpr> combo = new HashSet<>();
-
-        for (int element : currentCombo) {
-          combo.add(featureExprs.get(element));
-        }
-
-        combos.add(combo);
+    for (int i = 0; i < bddFeatureExprs.size(); i++) {
+      if (!indexesToRemove.contains(i)) {
+        newBDDFeatureExprs.add(bddFeatureExprs.get(i));
       }
     }
 
-    return combos;
+    return newBDDFeatureExprs;
   }
 
-  private static List<FeatureExpr> removeRedundant(List<FeatureExpr> featureExprs) {
-    Set<FeatureExpr> uniqueFeatureExprsSet = new HashSet<>();
-    List<FeatureExpr> uniqueFeatureExprs = new ArrayList<>();
+  private static Set<Integer> getIndexesOfTautologies(List<FeatureExpr> bddFeatureExprs) {
+    Set<Integer> indexesOfTautologies = new HashSet<>();
 
-    for (FeatureExpr featureExpr : featureExprs) {
-      if (uniqueFeatureExprsSet.contains(featureExpr)) {
-        continue;
+    for (int i = 0; i < bddFeatureExprs.size(); i++) {
+      FeatureExpr bddFeatureExpr = bddFeatureExprs.get(i);
+
+      if (bddFeatureExpr.isTautology()) {
+        indexesOfTautologies.add(i);
       }
-
-      uniqueFeatureExprs.add(featureExpr);
-      uniqueFeatureExprsSet.add(featureExpr);
     }
 
-    return uniqueFeatureExprs;
+    return indexesOfTautologies;
+  }
+
+  private static List<FeatureExpr> parseAsBDDFeatureExprs(List<String> stringConstraints) {
+    List<FeatureExpr> bddFeatureExprs = new ArrayList<>();
+
+    for (String stringConstraint : stringConstraints) {
+      FeatureExpr bddFeatureExpr = BDDFeatureExprParser.parseFeatureExprAsBDD(stringConstraint);
+      bddFeatureExprs.add(bddFeatureExpr);
+    }
+
+    return bddFeatureExprs;
   }
 
   private static Set<Set<String>> getConfigs(
@@ -297,24 +251,16 @@ public class MinConfigsGenerator {
   }
 
   private static Collection<SingleFeatureExpr> getColoring(
-      List<FeatureExpr> featureExprs,
-      Set<Pair<Integer, Integer>> mutexVertices,
-      List<String> constraints) {
+      List<FeatureExpr> featureExprs, List<String> stringConstraints) {
 
     int colors = 0;
 
     while (true) {
       System.out.println("Trying num of colors: " + (colors + 1));
-      Set<SingleFeatureExpr> interestingFeatures = assignColorsToVertices(featureExprs, colors);
-
       FeatureExpr colorsFormula = buildColoredFormula(featureExprs, colors);
-      FeatureExpr form = buildForm(featureExprs, colors, constraints);
-//      FeatureExpr mutexFormula = buildMutexFormula(mutexVertices, colors);
-      //      FeatureExpr equivFormula = buildEquivFormula(featureExprs, colors);
-
-      FeatureExpr formula = colorsFormula.and(form);
-      //      formula = formula.and(equivFormula);
-
+      FeatureExpr constraintFormula =
+          buildConstraintFormula(featureExprs, colors, stringConstraints);
+      FeatureExpr formula = colorsFormula.and(constraintFormula);
       System.out.println("Formula size: " + formula.size());
       System.out.println();
       //      DimacsWriter dw = DimacsWriter.instance;
@@ -337,79 +283,50 @@ public class MinConfigsGenerator {
         continue;
       }
 
+      Set<SingleFeatureExpr> interestingFeatures = assignColorsToVertices(featureExprs, colors);
+
       return getColoringAssign(formula, interestingFeatures);
     }
   }
 
-  private static FeatureExpr buildForm(
-      List<FeatureExpr> featureExprs, int colors, List<String> constraints) {
-    FeatureExpr form = FeatureExprFactory.True();
+  private static FeatureExpr buildConstraintFormula(
+      List<FeatureExpr> featureExprs, int colors, List<String> stringConstraints) {
+    FeatureExpr constraintFormula = FeatureExprFactory.True();
 
     for (int color = 0; color <= colors; color++) {
-
       for (int vertex = 0; vertex < featureExprs.size(); vertex++) {
-        FeatureExpr coloredVertex = SAT_PARSER.parse(createVertex(vertex, color));
         FeatureExpr featureExpr = featureExprs.get(vertex);
-        Iterator<String> tmp = featureExpr.collectDistinctFeatures().iterator();
-        Set<String> features = new HashSet<>();
+        Set<String> features = getDistinctFeatures(featureExpr);
+        String constraint = stringConstraints.get(vertex);
 
-        while (tmp.hasNext()) {
-          features.add(tmp.next());
+        for (String feature : features) {
+          constraint = constraint.replaceAll(feature, feature + "_" + color);
         }
 
-        String constraint = constraints.get(vertex);
+        FeatureExpr bddFeatureExpr = BDDFeatureExprParser.parseFeatureExprAsBDD(constraint);
+        FeatureExpr satFeatureExpr = ((BDDFeatureExpr) bddFeatureExpr).toSATFeatureExpr();
 
-        for (String f : features) {
-          constraint = constraint.replaceAll(f, f + "_" + color);
-        }
-
-        FeatureExpr x = BDDFeatureExprParser.parseFeatureExprAsBDD(constraint);
-        FeatureExpr y = ((BDDFeatureExpr) x).toSATFeatureExpr();
-
-        FeatureExpr z = coloredVertex.implies(y);
-        form = form.and(z);
+        FeatureExpr coloredVertex = SAT_PARSER.parse(createVertex(vertex, color));
+        FeatureExpr implication = coloredVertex.implies(satFeatureExpr);
+        constraintFormula = constraintFormula.and(implication);
       }
     }
 
+    // TODO MIGUEL hacky way of setting back to using a SAT solver since I used BDD
     FeatureExprFactory.setDefault(FeatureExprFactory.sat());
 
-    return form;
+    return constraintFormula;
   }
 
-  private static FeatureExpr buildEquivFormula(List<FeatureExpr> featureExprs, int colors) {
-    FeatureExpr equivFormula = FeatureExprFactory.True();
+  private static Set<String> getDistinctFeatures(FeatureExpr featureExpr) {
+    Iterator<String> distinctFeaturesIter = featureExpr.collectDistinctFeatures().iterator();
+    Set<String> features = new HashSet<>();
 
-    for (int vertex = 0; vertex < featureExprs.size(); vertex++) {
-      for (int color = 0; color <= colors; color++) {
-        FeatureExpr coloredVertex = SAT_PARSER.parse(createVertex(vertex, color));
-        FeatureExpr equivFeatureExpr = coloredVertex.implies(featureExprs.get(vertex));
-
-        equivFormula = equivFormula.and(equivFeatureExpr);
-      }
+    while (distinctFeaturesIter.hasNext()) {
+      features.add(distinctFeaturesIter.next());
     }
 
-    return equivFormula;
-  }
-
-  private static FeatureExpr buildMutexFormula(
-      Set<Pair<Integer, Integer>> mutexVertices, int colors) {
-    FeatureExpr unsatCombosConstraints = FeatureExprFactory.True();
-
-    for (int color = 0; color <= colors; color++) {
-      FeatureExpr unsatCombosConstraint = FeatureExprFactory.True();
-
-      for (Pair<Integer, Integer> mutexVertex : mutexVertices) {
-        FeatureExpr coloredVertex1 = SAT_PARSER.parse(createVertex(mutexVertex.getLeft(), color));
-        FeatureExpr coloredVertex2 = SAT_PARSER.parse(createVertex(mutexVertex.getRight(), color));
-        FeatureExpr mutexFeatureExpr = coloredVertex1.and(coloredVertex2).not();
-
-        unsatCombosConstraint = unsatCombosConstraint.and(mutexFeatureExpr);
-      }
-
-      unsatCombosConstraints = unsatCombosConstraints.and(unsatCombosConstraint);
-    }
-
-    return unsatCombosConstraints;
+    return features;
   }
 
   private static Collection<SingleFeatureExpr> getColoringAssign(

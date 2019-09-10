@@ -12,7 +12,7 @@ public class SATFeatureExprParser {
   // Suppress default constructor for noninstantiability
   private SATFeatureExprParser() {}
 
-  public static List<FeatureExpr> toSatFeatureExprs(List<FeatureExpr> featureExprs) {
+  public static List<FeatureExpr> BDDFeatureExprstoSatFeatureExprs(List<FeatureExpr> featureExprs) {
     List<FeatureExpr> satFeatureExprs = new ArrayList<>();
 
     for (FeatureExpr featureExpr : featureExprs) {
