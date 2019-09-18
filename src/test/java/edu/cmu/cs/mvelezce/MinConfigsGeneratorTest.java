@@ -1,11 +1,12 @@
 package edu.cmu.cs.mvelezce;
 
+import org.junit.Assert;
+import org.junit.Test;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.junit.Assert;
-import org.junit.Test;
 
 public class MinConfigsGeneratorTest {
 
@@ -37,12 +38,13 @@ public class MinConfigsGeneratorTest {
     options.add("REPLICATED");
 
     List<String> constraints = new ArrayList<>();
-    constraints.add("(!JECACHESIZE && !SHAREDCACHE && !DUPLICATES && !REPLICATED && !SEQUENTIAL) || (JECACHESIZE && SHAREDCACHE && !DUPLICATES && REPLICATED && !SEQUENTIAL) || (JECACHESIZE && !SHAREDCACHE && !DUPLICATES && !REPLICATED && !SEQUENTIAL) || (JECACHESIZE && SHAREDCACHE && !DUPLICATES && !REPLICATED && !SEQUENTIAL) || (!JECACHESIZE && SHAREDCACHE && !DUPLICATES && !REPLICATED && !SEQUENTIAL) || (!JECACHESIZE && !SHAREDCACHE && !DUPLICATES && REPLICATED && !SEQUENTIAL) || (JECACHESIZE && !SHAREDCACHE && !DUPLICATES && REPLICATED && !SEQUENTIAL) || (!JECACHESIZE && SHAREDCACHE && !DUPLICATES && REPLICATED && !SEQUENTIAL)");
+    constraints.add(
+        "(!JECACHESIZE && !SHAREDCACHE && !DUPLICATES && !REPLICATED && !SEQUENTIAL) || (JECACHESIZE && SHAREDCACHE && !DUPLICATES && REPLICATED && !SEQUENTIAL) || (JECACHESIZE && !SHAREDCACHE && !DUPLICATES && !REPLICATED && !SEQUENTIAL) || (JECACHESIZE && SHAREDCACHE && !DUPLICATES && !REPLICATED && !SEQUENTIAL) || (!JECACHESIZE && SHAREDCACHE && !DUPLICATES && !REPLICATED && !SEQUENTIAL) || (!JECACHESIZE && !SHAREDCACHE && !DUPLICATES && REPLICATED && !SEQUENTIAL) || (JECACHESIZE && !SHAREDCACHE && !DUPLICATES && REPLICATED && !SEQUENTIAL) || (!JECACHESIZE && SHAREDCACHE && !DUPLICATES && REPLICATED && !SEQUENTIAL)");
 
     Set<Set<String>> satConfig = MinConfigsGenerator.getSatConfigs(options, constraints);
     System.out.println(satConfig);
 
-//    Assert.assertEquals(2, satConfig.size());
+    //    Assert.assertEquals(2, satConfig.size());
   }
 
   @Test
@@ -87,7 +89,7 @@ public class MinConfigsGeneratorTest {
   public void getSatConfigs2() {
     Set<String> options = new HashSet<>();
     options.add("A");
-//    options.add("B");
+    //    options.add("B");
 
     List<String> constraints = new ArrayList<>();
     constraints.add("A");

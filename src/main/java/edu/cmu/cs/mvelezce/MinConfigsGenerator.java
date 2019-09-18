@@ -1,24 +1,16 @@
 package edu.cmu.cs.mvelezce;
 
-import de.fosd.typechef.featureexpr.FeatureExpr;
-import de.fosd.typechef.featureexpr.FeatureExprFactory;
-import de.fosd.typechef.featureexpr.FeatureExprParser;
-import de.fosd.typechef.featureexpr.FeatureExprParserJava;
-import de.fosd.typechef.featureexpr.FeatureModel;
-import de.fosd.typechef.featureexpr.SingleFeatureExpr;
+import de.fosd.typechef.featureexpr.*;
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr;
 import de.fosd.typechef.featureexpr.sat.SATFeatureModel;
 import edu.cmu.cs.mvelezce.parser.bdd.BDDFeatureExprParser;
 import edu.cmu.cs.mvelezce.parser.sat.SATFeatureExprParser;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 import scala.Option;
 import scala.Tuple2;
 import scala.collection.Iterator;
 import scala.collection.JavaConverters;
+
+import java.util.*;
 
 /** Reimplementation and repurposing of https://github.com/ckaestne/OptimalCoverage. */
 public class MinConfigsGenerator {
@@ -43,7 +35,7 @@ public class MinConfigsGenerator {
     stringConstraints = removeStringConstraints(stringConstraints, indexesOfTautologies);
     bddFeatureExprs = removeBDDFeatureExprs(bddFeatureExprs, indexesOfTautologies);
 
-    Set<Integer> indexesOfRedundantConstraints = getIndexesOfRedundantConstraints(bddFeatureExprs);
+    Set<Integer> indexesOfRedundantConstraints = getIndexesOfEquivalentConstraints(bddFeatureExprs);
     stringConstraints = removeStringConstraints(stringConstraints, indexesOfRedundantConstraints);
     bddFeatureExprs = removeBDDFeatureExprs(bddFeatureExprs, indexesOfRedundantConstraints);
 
@@ -70,7 +62,7 @@ public class MinConfigsGenerator {
     Set<Integer> indexesOfTautologies = getIndexesOfTautologies(bddFeatureExprs);
     bddFeatureExprs = removeBDDFeatureExprs(bddFeatureExprs, indexesOfTautologies);
 
-    Set<Integer> indexesOfRedundantConstraints = getIndexesOfRedundantConstraints(bddFeatureExprs);
+    Set<Integer> indexesOfRedundantConstraints = getIndexesOfEquivalentConstraints(bddFeatureExprs);
     bddFeatureExprs = removeBDDFeatureExprs(bddFeatureExprs, indexesOfRedundantConstraints);
 
     return SATFeatureExprParser.BDDFeatureExprstoSatFeatureExprs(bddFeatureExprs);
@@ -89,19 +81,21 @@ public class MinConfigsGenerator {
     return newStringConstraints;
   }
 
-  private static Set<Integer> getIndexesOfRedundantConstraints(List<FeatureExpr> bddFeatureExprs) {
+  private static Set<Integer> getIndexesOfEquivalentConstraints(List<FeatureExpr> bddFeatureExprs) {
     Set<Integer> indexesOfRedundantConstraints = new HashSet<>();
-    Set<FeatureExpr> uniqueConstraints = new HashSet<>();
 
-    for (int i = 0; i < bddFeatureExprs.size(); i++) {
-      FeatureExpr featureExpr = bddFeatureExprs.get(i);
+    for (int i = 0; i < (bddFeatureExprs.size() - 1); i++) {
+      FeatureExpr featureExpr1 = bddFeatureExprs.get(i);
 
-      if (uniqueConstraints.contains(featureExpr)) {
-        indexesOfRedundantConstraints.add(i);
-        continue;
+      for (int j = (i + 1); j < bddFeatureExprs.size(); j++) {
+        FeatureExpr featureExpr2 = bddFeatureExprs.get(j);
+
+        if (featureExpr1.equivalentTo(featureExpr2)) {
+          indexesOfRedundantConstraints.add(i);
+
+          break;
+        }
       }
-
-      uniqueConstraints.add(featureExpr);
     }
 
     return indexesOfRedundantConstraints;
