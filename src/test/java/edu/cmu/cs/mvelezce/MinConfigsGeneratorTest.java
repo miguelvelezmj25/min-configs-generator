@@ -1,5 +1,8 @@
 package edu.cmu.cs.mvelezce;
 
+import de.fosd.typechef.featureexpr.FeatureExpr;
+import de.fosd.typechef.featureexpr.sat.SATFeatureExprFactory;
+import de.fosd.typechef.featureexpr.sat.True;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -26,6 +29,41 @@ public class MinConfigsGeneratorTest {
     System.out.println(satConfig);
 
     Assert.assertEquals(2, satConfig.size());
+  }
+
+  @Test
+  public void parseAsFeatureExpr() {
+    String a = "A && B";
+    String b = "A && C";
+    String c = "A && B";
+    String d = "H";
+
+    FeatureExpr A = MinConfigsGenerator.parseAsFeatureExpr(a);
+    FeatureExpr B = MinConfigsGenerator.parseAsFeatureExpr(b);
+    FeatureExpr C = MinConfigsGenerator.parseAsFeatureExpr(c);
+    FeatureExpr D = MinConfigsGenerator.parseAsFeatureExpr(d);
+
+    FeatureExpr x = A.and(B);
+    System.out.println(A.equiv(C));
+    System.out.println(A.equivalentTo(C));
+//    String a = "A";
+//    String x = "A";
+////    String a = "((JECACHESIZE && ((SHAREDCACHE && REPLICATED && !SEQUENTIAL && DUPLICATES) || (!SHAREDCACHE && REPLICATED && !SEQUENTIAL && !DUPLICATES))) || (DUPLICATES && ((SHAREDCACHE && !REPLICATED && SEQUENTIAL) || (SHAREDCACHE && REPLICATED && !SEQUENTIAL)) && !JECACHESIZE))";
+////
+////    String x = "(SHAREDCACHE && !REPLICATED && !SEQUENTIAL && !JECACHESIZE)";
+////    String y = "(!DUPLICATES && SHAREDCACHE && !REPLICATED && SEQUENTIAL && !JECACHESIZE)";
+////    String z = "((DUPLICATES && !REPLICATED && !SHAREDCACHE && !SEQUENTIAL && JECACHESIZE) || (SHAREDCACHE && DUPLICATES && REPLICATED && !JECACHESIZE && !SEQUENTIAL))";
+//
+//    FeatureExpr A = MinConfigsGenerator.parseAsFeatureExpr(a);
+//    FeatureExpr X = MinConfigsGenerator.parseAsFeatureExpr(x);
+////    FeatureExpr Y = MinConfigsGenerator.parseAsFeatureExpr(y);
+////    FeatureExpr Z = MinConfigsGenerator.parseAsFeatureExpr(z);
+//
+//    System.out.println(X.implies(A).isTautology());
+//    System.out.println(X.equivalentTo(A));
+////    System.out.println(Y.implies(A).isTautology());
+////    System.out.println(Z.implies(A).isTautology());
+//    System.out.println();
   }
 
   @Test

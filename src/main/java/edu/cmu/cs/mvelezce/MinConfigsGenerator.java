@@ -56,7 +56,16 @@ public class MinConfigsGenerator {
     return getConfigs(featureExprsByColor, singleFeatureExprScalaSet);
   }
 
+  public static FeatureExpr parseAsFeatureExpr(String constraint) {
+    BDDFeatureExpr bbdFeatureExpr =
+        (BDDFeatureExpr) BDDFeatureExprParser.parseFeatureExprAsBDD(constraint);
+
+    return bbdFeatureExpr.toSATFeatureExpr();
+  }
+
   public static List<FeatureExpr> getFeatureExprs(List<String> stringConstraints) {
+    System.err.println(
+        "Seems weird to be using a \'min config generator\' tool to parse feature expr");
     List<FeatureExpr> bddFeatureExprs = parseAsBDDFeatureExprs(stringConstraints);
 
     Set<Integer> indexesOfTautologies = getIndexesOfTautologies(bddFeatureExprs);

@@ -3,6 +3,7 @@ package edu.cmu.cs.mvelezce.parser.sat;
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import de.fosd.typechef.featureexpr.FeatureExprFactory;
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,6 +21,8 @@ public class SATFeatureExprParser {
       satFeatureExprs.add(satFeatureExpr);
     }
 
+    System.err.println(
+        "Setting the featureExpr default to sat here is bad practice since it assumes a pattern to follow");
     FeatureExprFactory.setDefault(FeatureExprFactory.sat());
 
     return satFeatureExprs;

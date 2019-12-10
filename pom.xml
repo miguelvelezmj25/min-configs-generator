@@ -76,6 +76,12 @@
       <version>3.6.1</version>
     </dependency>
 
+    <dependency>
+      <groupId>com.mijecu25</groupId>
+      <artifactId>meme</artifactId>
+      <version>0.1.0-SNAPSHOT</version>
+    </dependency>
+
   </dependencies>
 
   <build>
