@@ -56,11 +56,18 @@ public class MinConfigsGenerator {
     return getConfigs(featureExprsByColor, singleFeatureExprScalaSet);
   }
 
-  public static FeatureExpr parseAsFeatureExpr(String constraint) {
+  public static FeatureExpr parseAsSATFeatureExpr(String constraint) {
     BDDFeatureExpr bbdFeatureExpr =
         (BDDFeatureExpr) BDDFeatureExprParser.parseFeatureExprAsBDD(constraint);
 
     return bbdFeatureExpr.toSATFeatureExpr();
+  }
+
+  public static BDDFeatureExpr parseAsBDDFeatureExpr(String constraint) {
+    BDDFeatureExpr bbdFeatureExpr =
+        (BDDFeatureExpr) BDDFeatureExprParser.parseFeatureExprAsBDD(constraint);
+
+    return bbdFeatureExpr;
   }
 
   public static List<FeatureExpr> getFeatureExprs(List<String> stringConstraints) {

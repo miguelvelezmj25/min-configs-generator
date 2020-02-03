@@ -1,10 +1,11 @@
 package edu.cmu.cs.mvelezce;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
+import de.fosd.typechef.featureexpr.sat.CNFHelper;
 import de.fosd.typechef.featureexpr.sat.SATFeatureExprFactory;
-import de.fosd.typechef.featureexpr.sat.True;
 import org.junit.Assert;
 import org.junit.Test;
+import scala.collection.JavaConverters;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -20,8 +21,8 @@ public class MinConfigsGeneratorTest {
     options.add("B");
 
     List<String> constraints = new ArrayList<>();
-    constraints.add("!A"); // 0
     constraints.add("A"); // 0
+    constraints.add("A || B"); // 0
     constraints.add("B"); // 1
     constraints.add("(!A && B) || (A && !B)"); // 2
 
@@ -33,37 +34,49 @@ public class MinConfigsGeneratorTest {
 
   @Test
   public void parseAsFeatureExpr() {
-    String a = "A && B";
-    String b = "A && C";
-    String c = "A && B";
-    String d = "H";
+    String a = "(!DUPLICATES && !ENV_IS_LOCKING && !MAX_MEMORY && !CACHE_MODE)";
+    String b =
+        "((!MAX_MEMORY && !ENV_IS_LOCKING && CACHE_MODE) || (DUPLICATES && !ENV_IS_LOCKING && !MAX_MEMORY && !CACHE_MODE))";
+    String c = "(MAX_MEMORY || ENV_IS_LOCKING)";
+    String d = "!M && E && (M || E) && (D || E || M)";
 
-    FeatureExpr A = MinConfigsGenerator.parseAsFeatureExpr(a);
-    FeatureExpr B = MinConfigsGenerator.parseAsFeatureExpr(b);
-    FeatureExpr C = MinConfigsGenerator.parseAsFeatureExpr(c);
-    FeatureExpr D = MinConfigsGenerator.parseAsFeatureExpr(d);
+    FeatureExpr A = MinConfigsGenerator.parseAsBDDFeatureExpr(a);
+    FeatureExpr B = MinConfigsGenerator.parseAsBDDFeatureExpr(b);
+    FeatureExpr C = MinConfigsGenerator.parseAsBDDFeatureExpr(c);
+    FeatureExpr D = MinConfigsGenerator.parseAsBDDFeatureExpr(d);
+    FeatureExpr T = SATFeatureExprFactory.True();
+    FeatureExpr F = SATFeatureExprFactory.False();
 
-    FeatureExpr x = A.and(B);
+    Set<String> config = new HashSet<>();
+    config.add("A");
+    config.add("C");
+    config.add("D");
+    config.add("E");
+    boolean x = A.evaluate(JavaConverters.asScalaSet(config).toSet());
     System.out.println(A.equiv(C));
     System.out.println(A.equivalentTo(C));
-//    String a = "A";
-//    String x = "A";
-////    String a = "((JECACHESIZE && ((SHAREDCACHE && REPLICATED && !SEQUENTIAL && DUPLICATES) || (!SHAREDCACHE && REPLICATED && !SEQUENTIAL && !DUPLICATES))) || (DUPLICATES && ((SHAREDCACHE && !REPLICATED && SEQUENTIAL) || (SHAREDCACHE && REPLICATED && !SEQUENTIAL)) && !JECACHESIZE))";
-////
-////    String x = "(SHAREDCACHE && !REPLICATED && !SEQUENTIAL && !JECACHESIZE)";
-////    String y = "(!DUPLICATES && SHAREDCACHE && !REPLICATED && SEQUENTIAL && !JECACHESIZE)";
-////    String z = "((DUPLICATES && !REPLICATED && !SHAREDCACHE && !SEQUENTIAL && JECACHESIZE) || (SHAREDCACHE && DUPLICATES && REPLICATED && !JECACHESIZE && !SEQUENTIAL))";
-//
-//    FeatureExpr A = MinConfigsGenerator.parseAsFeatureExpr(a);
-//    FeatureExpr X = MinConfigsGenerator.parseAsFeatureExpr(x);
-////    FeatureExpr Y = MinConfigsGenerator.parseAsFeatureExpr(y);
-////    FeatureExpr Z = MinConfigsGenerator.parseAsFeatureExpr(z);
-//
-//    System.out.println(X.implies(A).isTautology());
-//    System.out.println(X.equivalentTo(A));
-////    System.out.println(Y.implies(A).isTautology());
-////    System.out.println(Z.implies(A).isTautology());
-//    System.out.println();
+    //    String a = "A";
+    //    String x = "A";
+    ////    String a = "((JECACHESIZE && ((SHAREDCACHE && REPLICATED && !SEQUENTIAL && DUPLICATES)
+    // || (!SHAREDCACHE && REPLICATED && !SEQUENTIAL && !DUPLICATES))) || (DUPLICATES &&
+    // ((SHAREDCACHE && !REPLICATED && SEQUENTIAL) || (SHAREDCACHE && REPLICATED && !SEQUENTIAL)) &&
+    // !JECACHESIZE))";
+    ////
+    ////    String x = "(SHAREDCACHE && !REPLICATED && !SEQUENTIAL && !JECACHESIZE)";
+    ////    String y = "(!DUPLICATES && SHAREDCACHE && !REPLICATED && SEQUENTIAL && !JECACHESIZE)";
+    ////    String z = "((DUPLICATES && !REPLICATED && !SHAREDCACHE && !SEQUENTIAL && JECACHESIZE)
+    // || (SHAREDCACHE && DUPLICATES && REPLICATED && !JECACHESIZE && !SEQUENTIAL))";
+    //
+    //    FeatureExpr A = MinConfigsGenerator.parseAsFeatureExpr(a);
+    //    FeatureExpr X = MinConfigsGenerator.parseAsFeatureExpr(x);
+    ////    FeatureExpr Y = MinConfigsGenerator.parseAsFeatureExpr(y);
+    ////    FeatureExpr Z = MinConfigsGenerator.parseAsFeatureExpr(z);
+    //
+    //    System.out.println(X.implies(A).isTautology());
+    //    System.out.println(X.equivalentTo(A));
+    ////    System.out.println(Y.implies(A).isTautology());
+    ////    System.out.println(Z.implies(A).isTautology());
+    //    System.out.println();
   }
 
   @Test
